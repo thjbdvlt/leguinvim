@@ -1,4 +1,4 @@
-__leguinvim__ - non-monospace neovim gui.
+__leguinvim__ - neovim gui with non-monospace font support.
 
 for people who want to use neovim for prose writing: sf novel, master thesis...
 
