@@ -218,7 +218,7 @@ impl Grid {
     }
 
     pub fn clear_content(&mut self) {
-        self.model = UiModel::new(self.model.rows as u64, self.model.columns as u64, self.id);
+        self.model = UiModel::new(self.model.rows as u64, self.model.columns as u64);
     }
 
     pub fn cursor_goto(&mut self, row: usize, col: usize) {
@@ -246,7 +246,11 @@ impl Grid {
     }
 
     pub fn sign_column_len(&self) -> usize {
-        self.model.sign_column_len()
+        if self.id == STATUS_GRID {
+            0
+        } else {
+            self.model.sign_column_len()
+        }
     }
 
     #[allow(clippy::get_first)] // get(0), get(1), get(2) more consistent than .first(), .get(1)

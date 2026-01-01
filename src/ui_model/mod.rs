@@ -13,7 +13,6 @@ pub use self::model_rect::ModelRect;
 
 #[derive(Default, Debug)]
 pub struct UiModel {
-    pub gridid: u64, // Multigrid
     pub columns: usize,
     pub rows: usize,
     /// (row, col)
@@ -24,14 +23,13 @@ pub struct UiModel {
 }
 
 impl UiModel {
-    pub fn new(rows: u64, columns: u64, gridid: u64) -> UiModel {
+    pub fn new(rows: u64, columns: u64) -> UiModel {
         let mut model = Vec::with_capacity(rows as usize);
         for _ in 0..rows as usize {
             model.push(Line::new(columns as usize));
         }
 
         UiModel {
-            gridid,
             columns: columns as usize,
             rows: rows as usize,
             cur_pos: (0, 0),
@@ -57,7 +55,7 @@ impl UiModel {
 
     #[inline]
     pub fn sign_column_len(&self) -> usize {
-        if self.model.len() == 0 {
+        if self.rows == 0 || self.columns == 0 {
             0
         } else {
             self.model[0].sign_column_len()
@@ -65,7 +63,7 @@ impl UiModel {
     }
 
     pub fn resized(&self, columns: usize, rows: usize) -> Self {
-        let mut new_model = Self::new(rows as u64, columns as u64, self.gridid);
+        let mut new_model = Self::new(rows as u64, columns as u64);
         // Copy the content of the old grid to the new one.
         // Else, (e.g.) `:split` would result in:
         // - a new OK grid, above.
@@ -243,7 +241,7 @@ mod tests {
 
     #[test]
     fn test_scroll_area() {
-        let mut model = UiModel::new(10, 20, 1);
+        let mut model = UiModel::new(10, 20);
 
         model.scroll(1, 5, 1, 5, 3, &Rc::new(Highlight::new()));
     }

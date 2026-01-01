@@ -1,13 +1,25 @@
-__leguinvim__ - non-monospace neovim gui.
+__leguinvim__ - neovim gui with non-monospace font support.
 
 for people who want to use neovim for prose writing: sf novel, master thesis...
 
 may look awful with some plugins. still very buggy.
 
-forked from [Lyude's neovim-gtk](https://github.com/Lyude/neovim-gtk) (lot of removals and changes).
+forked from [neovim-gtk](https://github.com/lyude/neovim-gtk).
+(lot of removals and changes.)
+
+```bash
+# download linux binary (other platforms binaries will come soons!)
+wget https://github.com/thjbdvlt/leguinvim/releases/download/0.0.2/leguinvim
+
+# or build (requires cargo)
+git clone https://github.com/thjbdvlt/leguinvim leguinvim
+cd leguinvim
+make install
+```
+
+the name is a reference to sf writer [ursula k le guin](https://de.wikipedia.org/wiki/Ursula_K._Le_Guin): neovim makes possible to edit text at the speed of thought, just as fast as le guin's characters with their telepathy abilities and their ansibles.
+the project could thus have been named *gtkleguinvim*. but it's too long.
 
 ![](./screenshots/completion.png)
 
 ![](./screenshots/fzf-and-split.png)
-
-this project may be renamed to gtkleguinvim: because it uses [gtk](https://www.gtk.org/) and is named after [ursula le guin](https://de.wikipedia.org/wiki/Ursula_K._Le_Guin). but it's too long.
