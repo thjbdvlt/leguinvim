@@ -1,0 +1,13 @@
+/* CSS stylings for LEGUINVIM that don't change  */
+popover.nvim-popover > contents {
+    padding: 3px;
+}
+
+.nvim-background {
+    background: rgba(0, 0, 0, 0);
+}
+
+listview.nvim-popupmenu-list {
+    margin: 0px;
+    padding: 0px;
+}

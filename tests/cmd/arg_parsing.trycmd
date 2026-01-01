@@ -1,0 +1,61 @@
+Make sure `$LEGUINVIM_CLI_TEST_MODE` actually works
+
+```
+$ leguinvim
+? success
+Testing the CLI
+
+```
+
+Diff mode tests
+
+```
+$ leguinvim -d
+? failed
+error: the following required arguments were not provided:
+  <FILES>...
+
+Usage: leguinvim[EXE] -d <FILES>... [-- <NVIM_ARGS>...]
+
+For more information, try '--help'.
+
+$ leguinvim -d foo
+? failed
+error: Diff mode (-d) requires 2 or more files
+
+Usage: leguinvim[EXE] [OPTIONS] [FILES]... [-- <NVIM_ARGS>...]
+
+For more information, try '--help'.
+
+$ leguinvim -d foo bar
+? success
+Testing the CLI
+
+```
+
+Post-config commands
+
+```
+$ leguinvim -c
+? failed
+error: a value is required for '-c <CMD>' but none was supplied
+
+For more information, try '--help'.
+
+$ leguinvim -c foo
+? success
+Testing the CLI
+Commands passed: ['foo']
+
+$ leguinvim -c foo -c
+? failed
+error: a value is required for '-c <CMD>' but none was supplied
+
+For more information, try '--help'.
+
+$ leguinvim -c foo -c bar
+? success
+Testing the CLI
+Commands passed: ['foo', 'bar']
+
+```
