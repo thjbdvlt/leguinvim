@@ -5,7 +5,6 @@ src := $(shell find -name '*.rs')
 install_path := $(DEST_DIR)$(PREFIX)/bin/$(name)
 
 all: $(bin)
-	# ./$(bin) u-k* --no-fork >LOG 2> LOG || less LOG
 	./$(bin) u-k*
 
 $(bin): $(src) Cargo.toml
