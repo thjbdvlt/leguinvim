@@ -8,7 +8,6 @@ use std::{
 };
 
 use crate::{
-    pix_grid::PixGridMap,
     render::*,
     shell::{RenderState, State},
     ui::UiMutex,
@@ -157,10 +156,9 @@ impl WidgetImpl for NvimViewportObject {
             // Render scenes get pretty huge here, so we cache them as often as possible
             let font_ctx = &render_state.font_ctx;
             let cell_metrics = font_ctx.cell_metrics();
-            let pix_gridmap = PixGridMap::from_gridmap(&state.grids, cell_metrics);
             if inner.snapshot_cache.is_none() {
                 inner.snapshot_cache =
-                    snapshot_all_grids(cell_metrics, &state.grids, &pix_gridmap, hl);
+                    snapshot_all_grids(cell_metrics, &state.grids, &state.pix_grids, hl);
             }
             if let Some(ref cached_snapshot) = inner.snapshot_cache {
                 let push_opacity = transparency.filled_alpha < 0.99999;

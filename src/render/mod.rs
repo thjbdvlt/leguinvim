@@ -96,7 +96,17 @@ pub fn snapshot_all_grids(
 
     for (id, grid) in grids.iter() {
         if let Some(pix_grid) = pix_gridmap.get(*id) {
-            snapshot_grid(&mut snapshot, cell_metrics, &grid, pix_grid, hl);
+            if pix_grid.columns != grid.model.columns {
+                snapshot_grid(
+                    &mut snapshot,
+                    cell_metrics,
+                    &grid,
+                    &PixGrid::new(grid, cell_metrics, 0.0),
+                    hl,
+                );
+            } else {
+                snapshot_grid(&mut snapshot, cell_metrics, &grid, pix_grid, hl);
+            }
         } else {
             eprintln!("missing PixGrid {id}");
         }
@@ -697,8 +707,17 @@ fn snapshot_cell(
     }
 }
 
-pub fn shape_dirty(ctx: &context::Context, ui_model: &mut ui_model::UiModel, hl: &HighlightMap) {
-    for line in ui_model.model_mut() {
+pub fn shape_dirty(
+    ctx: &context::Context,
+    ui_model: &mut ui_model::UiModel,
+    pix_grid: &mut PixGrid,
+    hl: &HighlightMap,
+    update_pix_grid: bool,
+) {
+    let space_width = ctx.cell_metrics().char_width as i32;
+    let sign_column = ui_model.sign_column_len();
+
+    for (row, line) in ui_model.model_mut().iter_mut().enumerate() {
         if !line.dirty_line {
             continue;
         }
@@ -727,6 +746,10 @@ pub fn shape_dirty(ctx: &context::Context, ui_model: &mut ui_model::UiModel, hl:
             }
 
             cell.dirty = false;
+        }
+
+        if update_pix_grid {
+            pix_grid.update_line(line, row, space_width, sign_column);
         }
 
         line.dirty_line = false;

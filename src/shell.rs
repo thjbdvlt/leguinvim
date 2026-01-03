@@ -38,7 +38,7 @@ use crate::input;
 use crate::input::keyval_to_input_string;
 use crate::mode;
 use crate::nvim_viewport::NvimViewport;
-use crate::pix_grid::GRID_WIDTH_RATIO;
+use crate::pix_grid::{PixGridMap, GRID_WIDTH_RATIO};
 use crate::render;
 use crate::render::CellMetrics;
 use crate::subscriptions::{SubscriptionHandle, SubscriptionKey, Subscriptions};
@@ -141,6 +141,7 @@ type NvimStartedCallback = Box<RefCell<dyn FnMut() + Send + 'static>>;
 
 pub struct State {
     pub grids: GridMap,
+    pub pix_grids: PixGridMap,
 
     mouse_enabled: bool,
     nvim: Rc<NeovimClient>,
@@ -194,6 +195,7 @@ impl State {
 
         State {
             grids: GridMap::new(),
+            pix_grids: PixGridMap::new(),
             nvim: Rc::new(NeovimClient::new()),
             mouse_enabled: true,
             cursor: None,
@@ -424,10 +426,17 @@ impl State {
     fn update_dirty_glyphs(&mut self) {
         let render_state = self.render_state.borrow();
         let (font_ctx, hl) = (&render_state.font_ctx, &render_state.hl);
-        for (_, grid) in self.grids.grids.iter_mut() {
-            render::shape_dirty(font_ctx, &mut grid.model, hl);
+        let cell_metrics = font_ctx.cell_metrics();
+        self.pix_grids.fit_gridmap(&self.grids, cell_metrics);
+        for (id, grid) in self.grids.grids.iter_mut() {
+            let pg = self.pix_grids.get_mut(id).unwrap();
+            render::shape_dirty(font_ctx, &mut grid.model, pg, hl, true);
         }
-        render::shape_dirty(font_ctx, &mut self.grids.pmenu.model, hl);
+        let pmenu = &mut self.grids.pmenu;
+        if !pmenu.hidden {
+            let pix_pmenu = &mut self.pix_grids.pmenu;
+            render::shape_dirty(font_ctx, &mut pmenu.model, pix_pmenu, hl, false);
+        }
     }
 
     fn im_commit(&self, ch: &str) {
