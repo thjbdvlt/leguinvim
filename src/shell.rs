@@ -1753,11 +1753,18 @@ impl State {
         _sep_char: String,
     ) -> RedrawMode {
         let grid = self.grids.get_or_create(grid);
+        let columns = grid.columns() as u64;
+        let mut rows = grid.rows() as u64;
+        /* i don't really know why it works like this, but it works. */
         if (row as i64) >= grid.start_row {
             grid.clear_content();
+            if rows > 0 {
+                rows -= 1;
+            }
         } else {
-            grid.resize(grid.columns() as u64, grid.rows() as u64 + 1);
+            rows += 1;
         }
+        grid.resize(columns, rows);
         grid.start_row = row as i64;
         grid.is_float = true;
         grid.border[0] = scrolled;
