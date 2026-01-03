@@ -430,12 +430,13 @@ impl State {
         self.pix_grids.fit_gridmap(&self.grids, cell_metrics);
         for (id, grid) in self.grids.grids.iter_mut() {
             let pg = self.pix_grids.get_mut(id).unwrap();
-            render::shape_dirty(font_ctx, &mut grid.model, pg, hl, true);
+            let sign_column = grid.sign_column_len();
+            render::shape_dirty(font_ctx, &mut grid.model, pg, hl, true, sign_column);
         }
         let pmenu = &mut self.grids.pmenu;
         if !pmenu.hidden {
             let pix_pmenu = &mut self.pix_grids.pmenu;
-            render::shape_dirty(font_ctx, &mut pmenu.model, pix_pmenu, hl, false);
+            render::shape_dirty(font_ctx, &mut pmenu.model, pix_pmenu, hl, false, 0);
         }
     }
 

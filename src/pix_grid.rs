@@ -1,4 +1,4 @@
-use crate::grid::{Grid, GridMap, STATUS_GRID};
+use crate::grid::{Grid, GridMap};
 use crate::render::CellMetrics;
 use crate::ui_model::Line;
 
@@ -40,11 +40,7 @@ impl PixGrid {
         let mut matrix = new_pix_model(columns, rows, space_width);
 
         /* get the sign column length */
-        let sign_column = if rows > 0 && columns > 0 && grid.id != STATUS_GRID {
-            model[0].sign_column_len()
-        } else {
-            0
-        };
+        let sign_column = grid.sign_column_len();
 
         /* compute the length for each non-space cell in each line */
         for (row, line) in model.iter().enumerate() {

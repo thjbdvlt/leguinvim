@@ -713,9 +713,9 @@ pub fn shape_dirty(
     pix_grid: &mut PixGrid,
     hl: &HighlightMap,
     update_pix_grid: bool,
+    sign_column: usize,
 ) {
     let space_width = ctx.cell_metrics().char_width as i32;
-    let sign_column = ui_model.sign_column_len();
 
     for (row, line) in ui_model.model_mut().iter_mut().enumerate() {
         if !line.dirty_line {

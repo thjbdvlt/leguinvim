@@ -55,7 +55,7 @@ impl UiModel {
 
     #[inline]
     pub fn sign_column_len(&self) -> usize {
-        if self.model.len() == 0 {
+        if self.rows == 0 || self.columns == 0 {
             0
         } else {
             self.model[0].sign_column_len()
