@@ -4,7 +4,7 @@ version = "0.0.2"
 authors = [
     "daa84 <daa84@inbox.ru>",
     "Lyude Paul <thatslyude@gmail.com>",
-    "thjbdvlt",
+    "thjbdvlt <thjbdvlt@e.mail.ch>",
 ]
 build = "build.rs"
 edition = "2018"
