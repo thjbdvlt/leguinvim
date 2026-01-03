@@ -821,7 +821,7 @@ dependencies = [
 
 [[package]]
 name = "leguinvim"
-version = "0.0.1-devel"
+version = "0.0.2"
 dependencies = [
  "async-trait",
  "build-version",
