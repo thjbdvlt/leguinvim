@@ -5,7 +5,6 @@ src := $(shell find -name '*.rs')
 install_path := $(DEST_DIR)$(PREFIX)/bin/$(name)
 
 all: $(bin)
-	./$(bin) u-k*
 
 $(bin): $(src) Cargo.toml
 	cargo build --release

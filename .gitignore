@@ -1,0 +1,21 @@
+u-k-le-guin*
+
+release.sh
+profile.sh
+flamegraph.svg
+perf.data*
+
+Cargo.lock
+
+target
+*.swp
+
+# Some build output from the CI's container caching I believe…
+container-images.txt
+container-images-key.txt
+container-images-uris.txt
+container-images.txt
+cached-container-images.tar
+
+# Flatpak
+.flatpak-builder
