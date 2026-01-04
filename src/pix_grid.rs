@@ -25,6 +25,7 @@ impl PixModel {
             ..PixModel::default()
         }
     }
+
     pub fn from_grid(model: &UiModel, space_width: f32, sign_column: usize) -> Self {
         let model = model;
         let (rows, columns) = (model.rows, model.columns);
@@ -40,6 +41,7 @@ impl PixModel {
         }
         pix_model
     }
+
     pub fn update_line(&mut self, line: &Line, row: usize, space_width: f32, sign_column: usize) {
         let pix_line = &mut self.matrix[row];
         pix_line.fill(space_width);
@@ -64,10 +66,12 @@ impl PixModel {
         }
         self.len_to_pos(row);
     }
+
     pub fn update_line_monospace(&mut self, row: usize, space_width: f32) {
         self.matrix[row].fill(space_width);
         self.len_to_pos(row);
     }
+
     fn len_to_pos(&mut self, row: usize) {
         /* compute the horizontal position in pixel of each cell
          * we just reuse the same array here, because the previous one
@@ -82,6 +86,7 @@ impl PixModel {
         }
         pix_line[self.columns] = pix_line[self.columns - 1];
     }
+
     pub fn fit(&self, model: &UiModel) -> bool {
         model.columns == self.columns && model.rows == self.rows
     }
