@@ -7,7 +7,7 @@ may look awful with some plugins. still very buggy.
 if you want to try it anyway, check how to [install](#install) and [configure](#configure) it.
 
 the name is a reference to sf writer [ursula k le guin](https://de.wikipedia.org/wiki/Ursula_K._Le_Guin): neovim makes possible to edit text at the speed of thought, just as fast as le guin's characters with their telepathy abilities and their ansibles.
-the project could thus have been named *gtkleguinvim*. but it's too long.
+the project could thus have been named *gtkleguinvim* (because it uses [gtk](https://www.gtk.org/)). but it's too long.
 
 ![](./screenshots/completion.png)
 
