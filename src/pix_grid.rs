@@ -1,6 +1,6 @@
 use crate::ui_model::{Line, UiModel};
 
-pub const GRID_WIDTH_RATIO: f64 = 0.9;
+pub const GRID_WIDTH_RATIO: f64 = 1.0;
 
 pub type PixLine = Box<[f32]>;
 type PixMatrix = Box<[PixLine]>;
