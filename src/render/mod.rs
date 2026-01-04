@@ -43,11 +43,15 @@ impl<'a> RenderStep<'a> {
         snapshot: &gtk::Snapshot,
         cell_metrics: &CellMetrics,
         line_x: &PixLine,
+        start_x: f32,
     ) {
-        let start_col = self.pos.1;
-        let y = cell_metrics.get_pixel_coords(self.pos).1;
-        let pos = (line_x[start_col] as f64, y);
-        let len = line_x[start_col + self.len] as f64 - pos.0;
+        // TODO optimize
+        let (start_row, start_col) = self.pos;
+        let x = line_x[start_col] as f64;
+        let y = start_row as f64 * cell_metrics.line_height;
+        let len = line_x[start_col + self.len] as f64 - x;
+        let x = start_x as f64 + x;
+        let pos = (x, y);
         match self.kind {
             RenderStepKind::Background =>
                 snapshot_bg(snapshot, cell_metrics, self.color, pos, len),
@@ -159,6 +163,7 @@ fn snapshot_grid(
     // optimizing contiguous series of similar drawing operations (source: Company)
     let model = ui_model.model();
 
+    let start_x = grid.rect.0;
     for (row, line) in model.iter().enumerate() {
         let mut pending_bg = None;
         let mut pending_strikethrough = None;
@@ -187,6 +192,7 @@ fn snapshot_grid(
                 cell_metrics,
                 pos,
                 &grid.pix.matrix[row],
+                start_x,
             );
             plan_underline_strikethrough(
                 &mut pending_strikethrough,
@@ -201,7 +207,7 @@ fn snapshot_grid(
 
         // Since background nodes come first, we can add them to the snapshot immediately
         if let Some(pending_bg) = pending_bg {
-            pending_bg.to_snapshot(&snapshot, cell_metrics, &grid.pix.matrix[row]);
+            pending_bg.to_snapshot(&snapshot, cell_metrics, &grid.pix.matrix[row], start_x);
         }
     }
 
@@ -209,7 +215,7 @@ fn snapshot_grid(
 
     for step in text_fmt_steps.into_iter() {
         let row = step.pos.0 - grid.start_row as usize;
-        step.to_snapshot(&snapshot, cell_metrics, &grid.pix.matrix[row]);
+        step.to_snapshot(&snapshot, cell_metrics, &grid.pix.matrix[row], start_x);
     }
 }
 
@@ -542,13 +548,14 @@ fn plan_and_snapshot_cell_bg<'a>(
     cell_metrics: &CellMetrics,
     (row, col): (usize, usize),
     line_x: &PixLine,
+    start_x: f32,
 ) {
     if let Some(cell_bg) = hl.cell_bg(cell).filter(|bg| *bg != hl.bg()) {
         if let Some(cur_pending_bg) = pending_bg {
             if cur_pending_bg.extend(RenderStepKind::Background, cell_bg) {
                 return;
             }
-            cur_pending_bg.to_snapshot(snapshot, cell_metrics, line_x);
+            cur_pending_bg.to_snapshot(snapshot, cell_metrics, line_x, start_x);
         }
         *pending_bg = Some(RenderStep::new(
             RenderStepKind::Background,
@@ -556,7 +563,7 @@ fn plan_and_snapshot_cell_bg<'a>(
             (row, col),
         ));
     } else if let Some(pending_bg) = pending_bg.take() {
-        pending_bg.to_snapshot(snapshot, cell_metrics, line_x);
+        pending_bg.to_snapshot(snapshot, cell_metrics, line_x, start_x);
     }
 }
 
