@@ -52,7 +52,7 @@ yes.
 but when writing prose, at least for some languages, and maybe surprisingely, it actually just works, because lines naturally tend to be a mix of narrow, wide and medium-width letters.
 except for extreme edge-cases, like lines full of bold-uppercased __W__. for these cases, __leguinvim__ reduce the font size for the line, to keep the whole text visible:
 
-![](./screenshots/www.png)
+![](./screenshots/wwwww.png)
 
 ## source
 
