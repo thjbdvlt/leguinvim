@@ -497,8 +497,6 @@ impl State {
         }
     }
 
-    fn update_pmenu(&mut self) {}
-
     fn im_commit(&self, ch: &str) {
         if let Some(nvim) = self.nvim() {
             input::im_input(&nvim, ch);
