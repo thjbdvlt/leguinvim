@@ -54,10 +54,6 @@ except for extreme edge-cases, like lines full of bold-uppercased __W__. for the
 
 ![](./screenshots/wwwww.png)
 
-this is to avoid that kind of situations:
-
-![](./screenshots/too-long.png)
-
 ## source
 
 __leguinvim__ is forked from [neovim-gtk](https://github.com/lyude/neovim-gtk).
