@@ -26,10 +26,10 @@ the project could thus have been named *gtkleguinvim*. but it's too long.
 
 ![](./screenshots/fzf-lua-monospace.png)
 
-to configure __leguinvim__, you may:
+to configure __leguinvim__, use a `ginit.vim` file in your neovim config directory:
 
 ```vim
-" ~/.config/nvim/ginit.vim
+" e.g. ~/.config/nvim/ginit.vim
 call rpcnotify(1, 'Gui', 'Font', 'Liberation Sans 20')  " main font
 call rpcnotify(1, 'Gui', 'FontMono', 'Fira Code 16')  " monospace font (floating windows)
 ```
