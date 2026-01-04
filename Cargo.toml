@@ -1,6 +1,6 @@
 [package]
 name = "leguinvim"
-version = "0.0.2"
+version = "0.0.3"
 authors = [
     "daa84 <daa84@inbox.ru>",
     "Lyude Paul <thatslyude@gmail.com>",
