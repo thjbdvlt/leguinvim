@@ -179,6 +179,7 @@ pub struct State {
     app_cmdline: Rc<RefCell<Option<ApplicationCommandLine>>>,
 
     pub pmenu: complete::Pmenu,
+    pub monospace_for_float: bool,
 }
 
 impl State {
@@ -247,6 +248,7 @@ impl State {
             app_cmdline: Rc::new(RefCell::new(None)),
 
             pmenu: complete::Pmenu::new(),
+            monospace_for_float: true,
         }
     }
 
@@ -672,6 +674,10 @@ impl State {
 
     pub fn set_font_mono(&mut self, font_desc: String) {
         self.set_font_rpc(&font_desc, true);
+    }
+
+    pub fn set_mono_float(&mut self, monospace: u64) {
+        self.monospace_for_float = monospace > 0;
     }
 
     pub fn set_font_rpc(&mut self, font_desc: &str, monospace: bool) {
@@ -1800,9 +1806,13 @@ impl State {
         let (row, col) = pos;
         let row = row + anchor_row as i64;
         let col = col + anchor_col as i64;
-        self.grids
-            .get_or_create(grid)
-            .set_float_pos(row, col, zindex, anchor_grid);
+        self.grids.get_or_create(grid).set_float_pos(
+            row,
+            col,
+            zindex,
+            anchor_grid,
+            self.monospace_for_float,
+        );
         RedrawMode::All
     }
 
@@ -1902,7 +1912,7 @@ impl State {
         };
 
         let pmenu_grid = self.grids.pmenu_mut();
-        pmenu_grid.set_float_pos(start_row + row + 1, 0, 300, grid);
+        pmenu_grid.set_float_pos(start_row + row + 1, 0, 300, grid, self.monospace_for_float);
         pmenu_grid.hidden = false;
         pmenu_grid.anchor_pos = (row, col);
 

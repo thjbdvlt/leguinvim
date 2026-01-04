@@ -30,6 +30,13 @@ to configure __leguinvim__, use a `ginit.vim` file in your neovim config directo
 
 ```vim
 " e.g. ~/.config/nvim/ginit.vim
-call rpcnotify(1, 'Gui', 'Font', 'Liberation Sans 20')  " main font
-call rpcnotify(1, 'Gui', 'FontMono', 'Fira Code 16')  " monospace font (floating windows)
+
+" main font
+call rpcnotify(1, 'Gui', 'Font', 'Liberation Sans 12') " default
+
+" monospace font used for floating windows
+call rpcnotify(1, 'Gui', 'FontMono', 'Fira Code 12') " default
+
+" use monospace font for floating windows. 0 or 1 (default)
+call rpcnotify(1, 'Gui', 'MonoFloat', 1)
 ```

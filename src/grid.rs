@@ -165,20 +165,23 @@ impl Grid {
         self.start_row = start_row;
         self.start_col = start_col;
         self.border = [start_row > 0, false, false, start_col > 0];
-        // self.border[0] = start_row > 0; // top
-        // self.border[1] = false; // right
-        // self.border[2] = false; // bottom
-        // self.border[3] = start_col > 0; // left
     }
 
-    pub fn set_float_pos(&mut self, row: i64, col: i64, zindex: u64, anchor_grid: u64) {
+    pub fn set_float_pos(
+        &mut self,
+        row: i64,
+        col: i64,
+        zindex: u64,
+        anchor_grid: u64,
+        monospace: bool,
+    ) {
         self.start_row = row;
         self.start_col = col;
         self.zindex = zindex;
         self.floating = true;
         self.border.fill(true);
         self.anchor_grid_id = anchor_grid;
-        self.monospace = true;
+        self.monospace = monospace;
     }
 
     pub fn get_cursor(&self) -> (usize, usize) {

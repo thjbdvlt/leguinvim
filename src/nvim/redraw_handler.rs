@@ -228,6 +228,7 @@ pub fn call_gui_event(
     match method {
         "FontMono" => call!(ui->set_font_mono(args: str)),
         "Font" => call!(ui->set_font(args: str)),
+        "MonoFloat" => call!(ui->set_mono_float(args: uint)),
         "FontFeatures" => call!(ui->set_font_features(args: str)),
         "Linespace" => call!(ui->set_line_space(args: str)),
         "Clipboard" => match try_str!(args[0]) {
