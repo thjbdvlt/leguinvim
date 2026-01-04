@@ -2,7 +2,7 @@ __leguinvim__ - neovim gui with non-monospace font support.
 
 for people who want to use neovim for prose writing: sf novel, master thesis...
 
-may look awful with some plugins. still very buggy.
+may look awful with some plugins. still very buggy, with strong [limitations](#limitations).
 
 if you want to try it anyway, check how to [install](#install) and [configure](#configure) it.
 
@@ -15,7 +15,7 @@ the project could thus have been named *gtkleguinvim* (because it uses [gtk](htt
 
 ![](./screenshots/fzf-lua-monospace.png)
 
-# install
+## install
 
 ```bash
 # download linux binary (other platforms binaries will come soons!)
@@ -28,7 +28,7 @@ cd leguinvim
 make install
 ```
 
-# configure
+## configure
 
 to configure __leguinvim__, use a `ginit.vim` file in your neovim config directory:
 
@@ -45,7 +45,11 @@ call rpcnotify(1, 'Gui', 'FontMono', 'Fira Code 12') " default
 call rpcnotify(1, 'Gui', 'MonoFloat', 1)
 ```
 
-# source
+## limitations
+
+![](./screenshots/limitation-1-chars.png)
+
+## source
 
 __leguinvim__ is forked from [neovim-gtk](https://github.com/lyude/neovim-gtk).
 (lot of removals and changes.)
