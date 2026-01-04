@@ -1928,6 +1928,7 @@ impl State {
         let start_row = anchor_grid.start_row;
         let max_rows = anchor_grid.rows() as i64;
         if max_rows <= start_row {
+            // FIXME: resize or set_pos ! This happens quite often.
             eprintln!("pmenu: start_row out of screen");
             return;
         }
