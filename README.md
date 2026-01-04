@@ -9,7 +9,7 @@ forked from [neovim-gtk](https://github.com/lyude/neovim-gtk).
 
 ```bash
 # download linux binary (other platforms binaries will come soons!)
-wget https://github.com/thjbdvlt/leguinvim/releases/download/0.0.3/leguinvim
+wget https://github.com/thjbdvlt/leguinvim/releases/latest/download/leguinvim
 
 # or build (requires cargo)
 git clone https://github.com/thjbdvlt/leguinvim leguinvim
