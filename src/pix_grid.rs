@@ -1,94 +1,48 @@
-use crate::grid::{Grid, GridMap};
-use crate::render::CellMetrics;
-use crate::ui_model::Line;
-
-use fnv::FnvHashMap;
+use crate::ui_model::{Line, UiModel};
 
 pub const GRID_WIDTH_RATIO: f64 = 0.9;
 
-type PixLine = Box<[i32]>;
-type PixModel = Box<[PixLine]>;
+pub type PixLine = Box<[f32]>;
+type PixMatrix = Box<[PixLine]>;
 
-pub struct PixGrid {
-    pub start_x: f64,
-    pub start_y: f64,
-    pub width: f64,
-    pub height: f64,
-    pub matrix: PixModel,
-    pub sign_column: usize,
-    pub columns: usize,
-    pub rows: usize,
+#[derive(Default, Debug)]
+pub struct PixModel {
+    pub matrix: PixMatrix,
+    columns: usize,
+    rows: usize,
 }
 
-fn new_pix_model(columns: usize, rows: usize, space_width: i32) -> PixModel {
+fn new_pix_matrix(columns: usize, rows: usize, space_width: f32) -> PixMatrix {
     vec![vec![space_width; columns + 1].into_boxed_slice(); rows].into_boxed_slice()
 }
 
-impl PixGrid {
-    pub fn new(grid: &Grid, cell_metrics: &CellMetrics, start_x: f64) -> PixGrid {
-        let model = grid.model.model();
-
-        /* get infos about grid position and size */
-        let (rows, columns) = (grid.model.rows, grid.model.columns);
-        let space_width = cell_metrics.char_width as i32;
-        let start_x = start_x + grid.start_x(cell_metrics);
-        let start_y = grid.start_y(cell_metrics);
-        let width = grid.width(cell_metrics);
-        let height = grid.height(cell_metrics);
-
-        /* generate an empty matrix */
-        let mut matrix = new_pix_model(columns, rows, space_width);
-
-        /* get the sign column length */
-        let sign_column = grid.sign_column_len();
-
-        /* compute the length for each non-space cell in each line */
-        for (row, line) in model.iter().enumerate() {
-            let pix_line = &mut matrix[row];
-            for col in sign_column..columns {
-                for item in &line.item_line[col] {
-                    let glyphs = item.glyphs();
-                    if glyphs.is_some() {
-                        for glyph_string in glyphs.iter() {
-                            let n = glyph_string.num_glyphs();
-                            pix_line[col] = glyph_string.width() / pango::SCALE;
-                            if n > 1 {
-                                /* when multiple glyphs computed as one, we set the
-                                 * subsequent glyphs length to zero
-                                 * */
-                                for i in 1..n as usize {
-                                    pix_line[col + i] = 0;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            /* compute the horizontal position in pixel of each cell
-             * we just reuse the same array here, because the previous one
-             * is not usefull anymore
-             * */
-            let mut x: i32 = start_x as i32;
-            for i in 0..columns {
-                let len = pix_line[i];
-                pix_line[i] = x;
-                x += len;
-            }
-            pix_line[columns] = pix_line[columns - 1];
-        }
-        PixGrid {
-            matrix,
-            start_x,
-            start_y,
-            width,
-            height,
-            sign_column,
+impl PixModel {
+    pub fn new(columns: usize, rows: usize) -> Self {
+        PixModel {
+            matrix: new_pix_matrix(columns, rows, 0.0),
             columns,
-            rows: model.len(),
+            rows,
+            ..PixModel::default()
         }
     }
-    pub fn update_line(&mut self, line: &Line, row: usize, space_width: i32, sign_column: usize) {
-        /* compute the length for each non-space cell in each line */
+
+    pub fn from_grid(model: &UiModel, space_width: f32, sign_column: usize) -> Self {
+        let model = model;
+        let (rows, columns) = (model.rows, model.columns);
+        let matrix = new_pix_matrix(columns, rows, space_width);
+        let mut pix_model = PixModel {
+            matrix,
+            columns,
+            rows,
+            ..PixModel::default()
+        };
+        for (row, line) in model.model().iter().enumerate() {
+            pix_model.update_line(line, row, space_width, sign_column);
+        }
+        pix_model
+    }
+
+    pub fn update_line(&mut self, line: &Line, row: usize, space_width: f32, sign_column: usize) {
         let pix_line = &mut self.matrix[row];
         pix_line.fill(space_width);
         for col in sign_column..self.columns {
@@ -97,24 +51,34 @@ impl PixGrid {
                 if glyphs.is_some() {
                     for glyph_string in glyphs.iter() {
                         let n = glyph_string.num_glyphs();
-                        pix_line[col] = glyph_string.width() / pango::SCALE;
+                        pix_line[col] = (glyph_string.width() / pango::SCALE) as f32;
                         if n > 1 {
-                            /* when multiple glyphs computed as one, we set the
-                             * subsequent glyphs length to zero
+                            /* when multiple glyphs are computed as one, we set the
+                             * subsequent glyphs length to zero.
                              * */
                             for i in 1..n as usize {
-                                pix_line[col + i] = 0;
+                                pix_line[col + i] = 0.0;
                             }
                         }
                     }
                 }
             }
         }
+        self.len_to_pos(row);
+    }
+
+    pub fn update_line_monospace(&mut self, row: usize, space_width: f32) {
+        self.matrix[row].fill(space_width);
+        self.len_to_pos(row);
+    }
+
+    fn len_to_pos(&mut self, row: usize) {
         /* compute the horizontal position in pixel of each cell
          * we just reuse the same array here, because the previous one
          * is not usefull anymore
          * */
-        let mut x: i32 = self.start_x as i32;
+        let pix_line = &mut self.matrix[row];
+        let mut x: f32 = 0.0;
         for i in 0..self.columns {
             let len = pix_line[i];
             pix_line[i] = x;
@@ -122,66 +86,9 @@ impl PixGrid {
         }
         pix_line[self.columns] = pix_line[self.columns - 1];
     }
-    pub fn empty() -> Self {
-        PixGrid {
-            start_x: 0.0,
-            start_y: 0.0,
-            width: 0.0,
-            height: 0.0,
-            matrix: vec![vec![0; 0].into_boxed_slice(); 0].into_boxed_slice(),
-            sign_column: 0,
-            columns: 0,
-            rows: 0,
-        }
-    }
-    pub fn fit(&self, grid: &Grid) -> bool {
-        grid.model.columns == self.columns && grid.model.rows == self.rows
-    }
-}
 
-pub struct PixGridMap {
-    pub grids: FnvHashMap<u64, PixGrid>,
-    pub pmenu: PixGrid,
-}
-
-impl PixGridMap {
-    pub fn get(&self, id: &u64) -> Option<&PixGrid> {
-        self.grids.get(id)
-    }
-    pub fn get_mut(&mut self, id: &u64) -> Option<&mut PixGrid> {
-        self.grids.get_mut(id)
-    }
-    pub fn get_or_create(
-        &mut self,
-        id: &u64,
-        grid: &Grid,
-        cell_metrics: &CellMetrics,
-    ) -> &mut PixGrid {
-        if self.grids.contains_key(&id) {
-            return self.grids.get_mut(&id).unwrap();
-        }
-        self.insert(grid, cell_metrics);
-        self.get_mut(id).unwrap()
-    }
-    pub fn new() -> Self {
-        PixGridMap {
-            grids: FnvHashMap::default(),
-            pmenu: PixGrid::empty(),
-        }
-    }
-    pub fn insert(&mut self, grid: &Grid, cell_metrics: &CellMetrics) {
-        self.grids
-            .insert(grid.id, PixGrid::new(grid, cell_metrics, 0.0));
-    }
-    pub fn fit_gridmap(&mut self, gridmap: &GridMap, cell_metrics: &CellMetrics) {
-        for (id, grid) in gridmap.grids.iter() {
-            if let Some(pg) = self.get_mut(id) {
-                if pg.fit(grid) {
-                    continue;
-                }
-            }
-            self.insert(grid, cell_metrics);
-        }
+    pub fn fit(&self, model: &UiModel) -> bool {
+        model.columns == self.columns && model.rows == self.rows
     }
 }
 
@@ -205,14 +112,15 @@ fn width_word_first_char(line: &Line, col: usize) -> Option<i32> {
 pub fn cursor_x(
     line: &Line,
     cursor_col: usize,
-    space_width: i32,
+    space_width: f32,
     sign_column_len: usize,
-) -> (i32, i32, i32) {
-    let mut x: i32 = sign_column_len as i32 * space_width;
+) -> (f32, f32, f32) {
+    let mut x: f32 = sign_column_len as f32 * space_width;
     let mut n_glyphs: usize = 0;
     let mut col: usize = sign_column_len;
-    let mut cursor_width: i32 = space_width;
-    let mut word_width_until: i32 = 0;
+    let mut cursor_width: f32 = space_width;
+    let mut word_width_until: f32 = 0.0;
+    // TODO macro ... ($x.width() / pango::scale) as f32
     'l: loop {
         for item in &line.item_line[col] {
             let glyphs = item.glyphs();
@@ -221,14 +129,14 @@ pub fn cursor_x(
                     let n = glyph_string.num_glyphs() as usize;
                     if col + n > cursor_col {
                         let m = cursor_col - col;
-                        if m as i32 > 0 {
+                        if m > 0 {
                             let mut new_glyph = glyph_string.clone();
                             new_glyph.set_size(m as i32);
-                            x += new_glyph.width() / pango::SCALE;
-                            word_width_until = new_glyph.width() / pango::SCALE;
+                            x += (new_glyph.width() / pango::SCALE) as f32;
+                            word_width_until = (new_glyph.width() / pango::SCALE) as f32;
                             n_glyphs += m;
                             if let Some(c) = glyph_string.glyph_info().iter().nth(m) {
-                                cursor_width = c.geometry().width() / pango::SCALE;
+                                cursor_width = (c.geometry().width() / pango::SCALE) as f32;
                             }
                         }
                         break 'l;
@@ -238,7 +146,7 @@ pub fn cursor_x(
                          * but ensure that it's computed the same way as it is for
                          * line drawing
                          * */
-                        x += glyph_string.width() / pango::SCALE;
+                        x += (glyph_string.width() / pango::SCALE) as f32;
                     }
                 }
             }
@@ -247,7 +155,7 @@ pub fn cursor_x(
         if col >= cursor_col {
             if col < line.item_line.len() {
                 if let Some(width) = width_word_first_char(line, col) {
-                    cursor_width = width / pango::SCALE;
+                    cursor_width = (width / pango::SCALE) as f32;
                 }
             }
             break 'l;
@@ -255,7 +163,7 @@ pub fn cursor_x(
     }
     (
         cursor_width,
-        x + ((cursor_col - n_glyphs - sign_column_len) as i32 * space_width),
+        x + ((cursor_col - n_glyphs - sign_column_len) as f32 * space_width),
         word_width_until,
     )
 }

@@ -9,17 +9,17 @@ use log::{debug, warn};
 
 use gio::prelude::*;
 use gio::{ApplicationCommandLine, SimpleAction};
-use gtk::{prelude::*, ApplicationWindow, Orientation, Paned};
+use gtk::{ApplicationWindow, Orientation, Paned, prelude::*};
 
 use serde::{Deserialize, Serialize};
 
+use crate::Args;
 use crate::highlight::BackgroundState;
 use crate::misc::{self, BoolExt};
 use crate::nvim::*;
 use crate::settings::{Settings, SettingsLoader};
 use crate::shell::{self, Shell};
 use crate::subscriptions::{SubscriptionHandle, SubscriptionKey};
-use crate::Args;
 
 const DEFAULT_WIDTH: i32 = 800;
 const DEFAULT_HEIGHT: i32 = 600;

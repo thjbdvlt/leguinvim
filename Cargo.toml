@@ -1,13 +1,13 @@
 [package]
 name = "leguinvim"
-version = "0.0.2"
+version = "0.0.3"
 authors = [
     "daa84 <daa84@inbox.ru>",
     "Lyude Paul <thatslyude@gmail.com>",
     "thjbdvlt <thjbdvlt@e.mail.ch>",
 ]
 build = "build.rs"
-edition = "2018"
+edition = "2024"
 license = "GPLv3"
 
 [features]

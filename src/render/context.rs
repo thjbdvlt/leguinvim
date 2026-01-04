@@ -66,11 +66,7 @@ impl Context {
                 let our_font = self.font_description();
                 let extra_fonts = first_res.iter().filter_map(|i| {
                     let font = i.analysis().font().describe();
-                    if font != *our_font {
-                        Some(font)
-                    } else {
-                        None
-                    }
+                    if font != *our_font { Some(font) } else { None }
                 });
 
                 // We do res.len() - 2 so that in the likely event that most of the Cell rendered
@@ -167,7 +163,6 @@ pub struct CellMetrics {
     pub strikethrough_thickness: f64,
     pub pango_ascent: i32,
     pub pango_descent: i32,
-    pub pango_char_width: i32,
 }
 
 impl CellMetrics {
@@ -195,7 +190,6 @@ impl CellMetrics {
         CellMetrics {
             pango_ascent: font_metrics.ascent(),
             pango_descent: font_metrics.descent(),
-            pango_char_width: font_metrics.approximate_char_width(),
             ascent,
             descent,
             line_height: ascent + descent + f64::from(line_space),
@@ -212,7 +206,6 @@ impl CellMetrics {
         CellMetrics {
             pango_ascent: 0,
             pango_descent: 0,
-            pango_char_width: 0,
             ascent: 0.0,
             descent: 0.0,
             line_height,

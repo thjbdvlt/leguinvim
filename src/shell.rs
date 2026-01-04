@@ -3,27 +3,27 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::ops::Deref;
 use std::rc::Rc;
-use std::sync::{mpsc, Arc};
+use std::sync::{Arc, mpsc};
 use std::thread;
 
 use log::{debug, error};
 
-use futures::{executor::block_on, FutureExt};
+use futures::{FutureExt, executor::block_on};
 
 use tokio::sync::{Mutex as AsyncMutex, Notify};
 
-use gdk::{prelude::*, Display, ModifierType};
+use gdk::{Display, ModifierType, prelude::*};
 use gio::ApplicationCommandLine;
-use gtk::prelude::*;
 use gtk::Notebook;
+use gtk::prelude::*;
 use pango::FontDescription;
 
 use nvim_rs::Value;
 
-use crate::color::{Color, COLOR_BLACK, COLOR_WHITE};
+use crate::color::{COLOR_BLACK, COLOR_WHITE, Color};
 use crate::complete;
 use crate::grid::GridMap;
-use crate::highlight::{is_line_nr_hi, BackgroundState, HighlightMap};
+use crate::highlight::{BackgroundState, HighlightMap, is_line_nr_hi};
 use crate::misc::{decode_uri, escape_filename, split_at_comma};
 use crate::nvim::{
     self, CallErrorExt, ErrorReport, NeovimApiInfo, NeovimClient, NormalError, NvimHandler,
@@ -31,22 +31,23 @@ use crate::nvim::{
 };
 use crate::settings::{FontSource, Settings};
 use crate::ui_model::ModelRect;
-use crate::{spawn_timeout, spawn_timeout_user_err, NvimTransport};
+use crate::{NvimTransport, spawn_timeout, spawn_timeout_user_err};
 
+use crate::Args;
 use crate::cursor::{Cursor, CursorRedrawCb};
 use crate::input;
 use crate::input::keyval_to_input_string;
 use crate::mode;
 use crate::nvim_viewport::NvimViewport;
-use crate::pix_grid::{PixGridMap, GRID_WIDTH_RATIO};
+use crate::pix_grid::GRID_WIDTH_RATIO;
 use crate::render;
 use crate::render::CellMetrics;
 use crate::subscriptions::{SubscriptionHandle, SubscriptionKey, Subscriptions};
 use crate::tabline::Tabline;
 use crate::ui::{Components, UiMutex};
-use crate::Args;
 
-const DEFAULT_FONT_NAME: &str = "DejaVu Sans Mono 12";
+const DEFAULT_FONT_NAME: &str = "Liberation Sans 12";
+const DEFAULT_FONT_NAME_MONO: &str = "Fira Code 12";
 pub const MINIMUM_SUPPORTED_NVIM_VERSION: &str = "0.3.2";
 
 macro_rules! idle_cb_call {
@@ -61,14 +62,16 @@ macro_rules! idle_cb_call {
 
 pub struct RenderState {
     pub font_ctx: render::Context,
+    pub mono_ctx: render::Context,
     pub hl: HighlightMap,
     pub mode: mode::Mode,
 }
 
 impl RenderState {
-    pub fn new(pango_context: pango::Context) -> Self {
+    pub fn new(pango_context: pango::Context, mono_context: pango::Context) -> Self {
         RenderState {
             font_ctx: render::Context::new(pango_context),
+            mono_ctx: render::Context::new(mono_context),
             hl: HighlightMap::new(),
             mode: mode::Mode::new(),
         }
@@ -141,7 +144,6 @@ type NvimStartedCallback = Box<RefCell<dyn FnMut() + Send + 'static>>;
 
 pub struct State {
     pub grids: GridMap,
-    pub pix_grids: PixGridMap,
 
     mouse_enabled: bool,
     nvim: Rc<NeovimClient>,
@@ -186,7 +188,11 @@ impl State {
         let pango_context = nvim_viewport.create_pango_context();
         pango_context.set_font_description(Some(&FontDescription::from_string(DEFAULT_FONT_NAME)));
 
-        let mut render_state = RenderState::new(pango_context);
+        let mono_context = nvim_viewport.create_pango_context();
+        mono_context
+            .set_font_description(Some(&FontDescription::from_string(DEFAULT_FONT_NAME_MONO)));
+
+        let mut render_state = RenderState::new(pango_context, mono_context);
         render_state.hl.set_use_cterm(options.cterm_colors);
 
         let render_state = Rc::new(RefCell::new(render_state));
@@ -195,7 +201,6 @@ impl State {
 
         State {
             grids: GridMap::new(),
-            pix_grids: PixGridMap::new(),
             nvim: Rc::new(NeovimClient::new()),
             mouse_enabled: true,
             cursor: None,
@@ -305,7 +310,7 @@ impl State {
         }
     }
 
-    pub fn set_font_desc(&mut self, desc: &str) {
+    pub fn set_font_desc(&mut self, desc: &str, monospace: bool) {
         let font_description = FontDescription::from_string(desc);
 
         if font_description.size() <= 0 {
@@ -316,16 +321,25 @@ impl State {
         let pango_context = self.nvim_viewport.create_pango_context();
         pango_context.set_font_description(Some(&font_description));
 
-        self.render_state
-            .borrow_mut()
-            .font_ctx
-            .update(pango_context);
+        if monospace {
+            self.render_state
+                .borrow_mut()
+                .mono_ctx
+                .update(pango_context);
+        } else {
+            self.render_state
+                .borrow_mut()
+                .font_ctx
+                .update(pango_context);
+        }
+
         self.grids.clear_glyphs();
         self.try_nvim_resize();
         self.queue_draw(RedrawMode::All);
     }
 
     pub fn set_font_features(&mut self, font_features: String) {
+        eprintln!("set_font_features {font_features:?}");
         let font_features = render::FontFeatures::from(font_features);
 
         self.render_state
@@ -426,17 +440,60 @@ impl State {
     fn update_dirty_glyphs(&mut self) {
         let render_state = self.render_state.borrow();
         let (font_ctx, hl) = (&render_state.font_ctx, &render_state.hl);
-        let cell_metrics = font_ctx.cell_metrics();
-        self.pix_grids.fit_gridmap(&self.grids, cell_metrics);
-        for (id, grid) in self.grids.grids.iter_mut() {
-            let pg = self.pix_grids.get_mut(id).unwrap();
+        let mono_ctx = &render_state.mono_ctx;
+
+        /* neovim grids */
+        for (_, grid) in self.grids.grids.iter_mut() {
             let sign_column = grid.sign_column_len();
-            render::shape_dirty(font_ctx, &mut grid.model, pg, hl, true, sign_column);
+            let ctx = if grid.monospace { mono_ctx } else { font_ctx };
+            grid.set_rect(ctx.cell_metrics());
+            render::shape_dirty(
+                ctx,
+                &mut grid.model,
+                &mut grid.pix,
+                hl,
+                true,
+                sign_column,
+                grid.monospace,
+            );
         }
-        let pmenu = &mut self.grids.pmenu;
-        if !pmenu.hidden {
-            let pix_pmenu = &mut self.pix_grids.pmenu;
-            render::shape_dirty(font_ctx, &mut pmenu.model, pix_pmenu, hl, false, 0);
+
+        /* pmenu */
+        if let Some(pmenu_start_x) = self.pmenu_start_x() {
+            let pmenu = &mut self.grids.pmenu;
+            pmenu.set_rect(font_ctx.cell_metrics());
+            pmenu.rect.0 = pmenu_start_x;
+            render::shape_dirty(
+                font_ctx,
+                &mut pmenu.model,
+                &mut pmenu.pix,
+                hl,
+                false,
+                0,
+                false,
+            );
+        };
+    }
+
+    fn pmenu_start_x(&self) -> Option<f32> {
+        let pmenu = &self.grids.pmenu;
+        if pmenu.hidden {
+            return None;
+        }
+        let (row, mut col) = pmenu.anchor_pos;
+        if row < 0 || col < 0 {
+            return None;
+        }
+        if col >= 2 {
+            /* don't know why it works, don't remember what it fixed */
+            col -= 2;
+        }
+        let pmenu_anchor_id = pmenu.anchor_grid_id;
+        if let Some(anchor) = self.grids.get(pmenu_anchor_id) {
+            Some(anchor.pix.matrix[row as usize][col as usize])
+        } else {
+            eprintln!("pmenu: missing PixGrid {:?}", pmenu_anchor_id);
+            None
         }
     }
 
@@ -547,7 +604,7 @@ impl State {
                     Value::Array(vec![
                         "nvim_command".into(),
                         Value::Array(vec![
-                            "au VimResized * ++once cal rpcnotify(1, 'resized')".into()
+                            "au VimResized * ++once cal rpcnotify(1, 'resized')".into(),
                         ]),
                     ]),
                     Value::Array(vec![
@@ -610,16 +667,20 @@ impl State {
     }
 
     pub fn set_font(&mut self, font_desc: String) {
-        self.set_font_rpc(&font_desc);
+        self.set_font_rpc(&font_desc, false);
     }
 
-    pub fn set_font_rpc(&mut self, font_desc: &str) {
+    pub fn set_font_mono(&mut self, font_desc: String) {
+        self.set_font_rpc(&font_desc, true);
+    }
+
+    pub fn set_font_rpc(&mut self, font_desc: &str, monospace: bool) {
         {
             let mut settings = self.settings.borrow_mut();
             settings.set_font_source(FontSource::Rpc);
         }
 
-        self.set_font_desc(font_desc);
+        self.set_font_desc(font_desc, monospace);
     }
 
     pub fn on_command(&mut self, command: nvim::NvimCommand) {
@@ -1188,8 +1249,8 @@ impl Shell {
     }
 
     #[cfg(unix)]
-    pub fn set_font_desc(&self, font_name: &str) {
-        self.state.borrow_mut().set_font_desc(font_name);
+    pub fn set_font_desc(&self, font_name: &str, monospace: bool) {
+        self.state.borrow_mut().set_font_desc(font_name, monospace);
     }
 
     pub fn grab_focus(&self) {
@@ -1464,7 +1525,7 @@ fn show_nvim_start_error(
             });
         }
         NvimInitError::MissingCapability(_) => unreachable!(),
-        NvimInitError::TcpConnectError { ref addr, .. } => {
+        NvimInitError::TcpConnectError { addr, .. } => {
             let addr = addr.to_string();
             let source = err.source();
             glib::idle_add_once(move || {
@@ -1476,7 +1537,7 @@ fn show_nvim_start_error(
             });
         }
         #[cfg(unix)]
-        NvimInitError::UnixConnectError { ref addr, .. } => {
+        NvimInitError::UnixConnectError { addr, .. } => {
             let addr = addr.to_string_lossy().to_string();
             let source = err.source();
             glib::idle_add_once(move || {
@@ -1705,7 +1766,7 @@ impl State {
         let grid = self.grids.get_or_create(grid);
         grid.hidden = false;
         grid.set_pos(start_row, start_col);
-        grid.resize(width, height);
+        grid.resize(width as usize, height as usize);
         RedrawMode::Nothing
     }
 
@@ -1764,9 +1825,10 @@ impl State {
         } else {
             rows += 1;
         }
-        grid.resize(columns, rows);
+        grid.resize(columns as usize, rows as usize);
         grid.start_row = row as i64;
-        grid.is_float = true;
+        grid.floating = true;
+        grid.monospace = false;
         grid.border[0] = scrolled;
         grid.zindex = 200;
         RedrawMode::All
@@ -1791,7 +1853,9 @@ impl State {
     }
 
     pub fn grid_resize(&mut self, grid: u64, columns: u64, rows: u64) -> RedrawMode {
-        self.grids.get_or_create(grid).resize(columns, rows);
+        self.grids
+            .get_or_create(grid)
+            .resize(columns as usize, rows as usize);
         RedrawMode::All
     }
 
@@ -1976,14 +2040,14 @@ impl State {
                         if desc.size() > 0
                             && exists_fonts.contains(&desc.family().unwrap_or_else(|| "".into()))
                         {
-                            self.set_font_rpc(font);
+                            self.set_font_rpc(font, false);
                             return RedrawMode::All;
                         }
                     }
 
                     // font does not exists? set first one
                     if !fonts.is_empty() {
-                        self.set_font_rpc(&fonts[0]);
+                        self.set_font_rpc(&fonts[0], false);
                         return RedrawMode::All;
                     }
                 }
