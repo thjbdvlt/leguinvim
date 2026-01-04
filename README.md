@@ -22,7 +22,7 @@ the project could thus have been named *gtkleguinvim*. but it's too long.
 
 ![](./screenshots/completion.png)
 
-![](./screenshots/fzf-and-split.png)
+![](./screenshots/floating-monospace.png)
 
 ![](./screenshots/fzf-lua-monospace.png)
 
