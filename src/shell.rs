@@ -39,7 +39,7 @@ use crate::input;
 use crate::input::keyval_to_input_string;
 use crate::mode;
 use crate::nvim_viewport::NvimViewport;
-use crate::pix_grid::{GRID_WIDTH_RATIO, PixGridMap};
+use crate::pix_grid::GRID_WIDTH_RATIO;
 use crate::render;
 use crate::render::CellMetrics;
 use crate::subscriptions::{SubscriptionHandle, SubscriptionKey, Subscriptions};
@@ -144,7 +144,6 @@ type NvimStartedCallback = Box<RefCell<dyn FnMut() + Send + 'static>>;
 
 pub struct State {
     pub grids: GridMap,
-    pub pix_grids: PixGridMap,
 
     mouse_enabled: bool,
     nvim: Rc<NeovimClient>,
@@ -202,7 +201,6 @@ impl State {
 
         State {
             grids: GridMap::new(),
-            pix_grids: PixGridMap::new(),
             nvim: Rc::new(NeovimClient::new()),
             mouse_enabled: true,
             cursor: None,
@@ -314,8 +312,6 @@ impl State {
 
     pub fn set_font_desc(&mut self, desc: &str, monospace: bool) {
         let font_description = FontDescription::from_string(desc);
-
-        // TODO monospace: ensure the font is not too large neither to high
 
         if font_description.size() <= 0 {
             error!("Font size must be > 0");
@@ -444,23 +440,64 @@ impl State {
     fn update_dirty_glyphs(&mut self) {
         let render_state = self.render_state.borrow();
         let (font_ctx, hl) = (&render_state.font_ctx, &render_state.hl);
-        let cell_metrics = font_ctx.cell_metrics();
         let mono_ctx = &render_state.mono_ctx;
-        let mono_metrics = &mono_ctx.cell_metrics();
-        self.pix_grids
-            .fit_gridmap(&self.grids, cell_metrics, mono_metrics);
-        for (id, grid) in self.grids.grids.iter_mut() {
-            let pg = self.pix_grids.get_mut(id).unwrap();
+
+        /* neovim grids */
+        for (_, grid) in self.grids.grids.iter_mut() {
             let sign_column = grid.sign_column_len();
             let ctx = if grid.monospace { mono_ctx } else { font_ctx };
-            render::shape_dirty(ctx, &mut grid.model, pg, hl, true, sign_column);
+            grid.set_rect(ctx.cell_metrics());
+            render::shape_dirty(
+                ctx,
+                &mut grid.model,
+                &mut grid.pix,
+                hl,
+                true,
+                sign_column,
+                grid.monospace,
+            );
         }
-        let pmenu = &mut self.grids.pmenu;
-        if !pmenu.hidden {
-            let pix_pmenu = &mut self.pix_grids.pmenu;
-            render::shape_dirty(font_ctx, &mut pmenu.model, pix_pmenu, hl, false, 0);
+
+        /* pmenu */
+        if let Some(pmenu_start_x) = self.pmenu_start_x() {
+            let pmenu = &mut self.grids.pmenu;
+            pmenu.set_rect(font_ctx.cell_metrics());
+            pmenu.rect.0 = pmenu_start_x;
+            render::shape_dirty(
+                font_ctx,
+                &mut pmenu.model,
+                &mut pmenu.pix,
+                hl,
+                false,
+                0,
+                false,
+            );
+        };
+    }
+
+    fn pmenu_start_x(&self) -> Option<f32> {
+        let pmenu = &self.grids.pmenu;
+        if pmenu.hidden {
+            return None;
+        }
+        let (row, mut col) = pmenu.anchor_pos;
+        if row < 0 || col < 0 {
+            return None;
+        }
+        if col >= 2 {
+            /* don't know why it works, don't remember what it fixed */
+            col -= 2;
+        }
+        let pmenu_anchor_id = pmenu.anchor_grid_id;
+        if let Some(anchor) = self.grids.get(pmenu_anchor_id) {
+            Some(anchor.pix.matrix[row as usize][col as usize])
+        } else {
+            eprintln!("pmenu: missing PixGrid {:?}", pmenu_anchor_id);
+            None
         }
     }
+
+    fn update_pmenu(&mut self) {}
 
     fn im_commit(&self, ch: &str) {
         if let Some(nvim) = self.nvim() {
@@ -1731,7 +1768,7 @@ impl State {
         let grid = self.grids.get_or_create(grid);
         grid.hidden = false;
         grid.set_pos(start_row, start_col);
-        grid.resize(width, height);
+        grid.resize(width as usize, height as usize);
         RedrawMode::Nothing
     }
 
@@ -1790,7 +1827,7 @@ impl State {
         } else {
             rows += 1;
         }
-        grid.resize(columns, rows);
+        grid.resize(columns as usize, rows as usize);
         grid.start_row = row as i64;
         grid.floating = true;
         grid.monospace = false;
@@ -1818,7 +1855,9 @@ impl State {
     }
 
     pub fn grid_resize(&mut self, grid: u64, columns: u64, rows: u64) -> RedrawMode {
-        self.grids.get_or_create(grid).resize(columns, rows);
+        self.grids
+            .get_or_create(grid)
+            .resize(columns as usize, rows as usize);
         RedrawMode::All
     }
 
@@ -2003,14 +2042,14 @@ impl State {
                         if desc.size() > 0
                             && exists_fonts.contains(&desc.family().unwrap_or_else(|| "".into()))
                         {
-                            self.set_font_rpc(font, false); // TODO monospace
+                            self.set_font_rpc(font, false);
                             return RedrawMode::All;
                         }
                     }
 
                     // font does not exists? set first one
                     if !fonts.is_empty() {
-                        self.set_font_rpc(&fonts[0], false); // TODO monospace
+                        self.set_font_rpc(&fonts[0], false);
                         return RedrawMode::All;
                     }
                 }

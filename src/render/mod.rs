@@ -10,7 +10,7 @@ use crate::{
     cursor::{Cursor, CursorRedrawCb, cursor_rect},
     grid::{Grid, GridMap},
     highlight::HighlightMap,
-    pix_grid::{PixGrid, PixGridMap, cursor_x},
+    pix_grid::{PixLine, PixModel, cursor_x},
     shell::TransparencySettings,
     ui_model::{self, Line},
 };
@@ -42,7 +42,7 @@ impl<'a> RenderStep<'a> {
         self,
         snapshot: &gtk::Snapshot,
         cell_metrics: &CellMetrics,
-        line_x: &Box<[i32]>
+        line_x: &PixLine,
     ) {
         let start_col = self.pos.1;
         let y = cell_metrics.get_pixel_coords(self.pos).1;
@@ -89,44 +89,30 @@ pub fn snapshot_all_grids(
     cell_metrics: &CellMetrics,
     mono_metrics: &CellMetrics,
     gridmap: &GridMap,
-    pix_gridmap: &PixGridMap,
     hl: &HighlightMap,
 ) -> Option<gsk::RenderNode> {
     let mut snapshot = gtk::Snapshot::new();
     let grids = gridmap.sorted_visible();
-    for (id, grid) in grids.iter() {
-        let pix_grid = pix_gridmap.get(*id).unwrap();
+    for (_, grid) in grids.iter() {
         let cm = if grid.monospace {
             mono_metrics
         } else {
             cell_metrics
         };
-        snapshot_grid(&mut snapshot, cm, &grid, pix_grid, hl);
+        snapshot_grid(&mut snapshot, cm, &grid, hl);
     }
-    snapshot_pmenu(&mut snapshot, gridmap, pix_gridmap, cell_metrics, hl);
+    snapshot_pmenu(&mut snapshot, gridmap, cell_metrics, hl);
     snapshot.to_node()
 }
 
-fn grid_bg(snapshot: &mut gtk::Snapshot, pix: &PixGrid, bg: &color::Color) {
-    snapshot.append_color(
-        &bg.into(),
-        &Rect::new(
-            pix.start_x as f32,
-            pix.start_y as f32,
-            pix.width as f32,
-            pix.height as f32,
-        ),
-    );
+fn grid_bg(snapshot: &mut gtk::Snapshot, grid: &Grid, bg: &color::Color) {
+    let (start_x, start_y, width, height) = grid.rect;
+    snapshot.append_color(&bg.into(), &Rect::new(start_x, start_y, width, height));
 }
 
-pub fn grid_border(
-    snapshot: &mut gtk::Snapshot,
-    grid: &Grid,
-    pix_grid: &PixGrid,
-    hl: &HighlightMap,
-) {
+pub fn grid_border(snapshot: &mut gtk::Snapshot, grid: &Grid, hl: &HighlightMap) {
     const BORDER_WIDTH: f32 = 1.0;
-    let (width, height) = (pix_grid.width as f32, pix_grid.height as f32);
+    let (start_x, start_y, width, height) = grid.rect;
     let borders = [
         (0.0, -BORDER_WIDTH, width, BORDER_WIDTH),  // top
         (width, 0.0, BORDER_WIDTH, height),         // right
@@ -138,12 +124,7 @@ pub fn grid_border(
             let (x, y, width, height) = borders[i];
             snapshot.append_color(
                 &hl.fg().into(),
-                &Rect::new(
-                    pix_grid.start_x as f32 + x,
-                    pix_grid.start_y as f32 + y,
-                    width,
-                    height,
-                ),
+                &Rect::new(start_x + x, start_y + y, width, height),
             )
         }
     }
@@ -153,19 +134,18 @@ fn snapshot_grid(
     snapshot: &mut gtk::Snapshot,
     cell_metrics: &CellMetrics,
     grid: &Grid,
-    pix_grid: &PixGrid,
     hl: &HighlightMap,
 ) {
-    if grid.rows() == 0 {
+    if grid.model.rows == 0 {
         return;
     }
 
     let ui_model = &grid.model;
 
-    grid_bg(snapshot, pix_grid, hl.bg());
+    grid_bg(snapshot, grid, hl.bg());
 
     if grid.any_border() {
-        grid_border(snapshot, grid, pix_grid, hl);
+        grid_border(snapshot, grid, hl);
     }
 
     // Various operations for text formatting come at the end, so store them in a list until then.
@@ -206,7 +186,7 @@ fn snapshot_grid(
                 cell,
                 cell_metrics,
                 pos,
-                &pix_grid.matrix[row],
+                &grid.pix.matrix[row],
             );
             plan_underline_strikethrough(
                 &mut pending_strikethrough,
@@ -221,15 +201,15 @@ fn snapshot_grid(
 
         // Since background nodes come first, we can add them to the snapshot immediately
         if let Some(pending_bg) = pending_bg {
-            pending_bg.to_snapshot(&snapshot, cell_metrics, &pix_grid.matrix[row]);
+            pending_bg.to_snapshot(&snapshot, cell_metrics, &grid.pix.matrix[row]);
         }
     }
 
-    snapshot_text(snapshot, cell_metrics, model, grid, pix_grid, hl);
+    snapshot_text(snapshot, cell_metrics, model, grid, &grid.pix, hl);
 
     for step in text_fmt_steps.into_iter() {
         let row = step.pos.0 - grid.start_row as usize;
-        step.to_snapshot(&snapshot, cell_metrics, &pix_grid.matrix[row]);
+        step.to_snapshot(&snapshot, cell_metrics, &grid.pix.matrix[row]);
     }
 }
 
@@ -238,49 +218,30 @@ fn snapshot_text(
     cell_metrics: &CellMetrics,
     model: &[Line],
     grid: &Grid,
-    pix_grid: &PixGrid,
+    pix: &PixModel,
     hl: &HighlightMap,
 ) {
     let line_height = cell_metrics.line_height as f32;
-    let mut y = (pix_grid.start_y + cell_metrics.ascent) as f32;
-    if !grid.monospace {
-        for (row, line) in model.iter().enumerate() {
-            let pix_row = &pix_grid.matrix[row];
-            for (col, cell) in line.line.iter().enumerate() {
-                snapshot_cell(
-                    &snapshot,
-                    &line.item_line[col],
-                    hl,
-                    cell,
-                    pix_row[col] as f32,
-                    y,
-                );
-            }
-            y += line_height;
+    let (start_x, mut y) = (grid.rect.0, grid.rect.1 + cell_metrics.ascent as f32);
+    for (row, line) in model.iter().enumerate() {
+        let pix_row = &pix.matrix[row];
+        for (col, cell) in line.line.iter().enumerate() {
+            snapshot_cell(
+                &snapshot,
+                &line.item_line[col],
+                hl,
+                cell,
+                start_x + pix_row[col] as f32,
+                y,
+            );
         }
-    } else {
-        let char_width = cell_metrics.char_width as f32;
-        let mut y = (pix_grid.start_y + cell_metrics.ascent) as f32;
-        for line in model {
-            for (col, cell) in line.line.iter().enumerate() {
-                snapshot_cell(
-                    &snapshot,
-                    &line.item_line[col],
-                    hl,
-                    cell,
-                    pix_grid.start_x as f32 + (col as f32 * char_width),
-                    y,
-                );
-            }
-            y += line_height;
-        }
+        y += line_height;
     }
 }
 
 fn snapshot_pmenu(
     snapshot: &mut gtk::Snapshot,
     gridmap: &GridMap,
-    pix_gridmap: &PixGridMap,
     cell_metrics: &CellMetrics,
     hl: &HighlightMap,
 ) {
@@ -288,24 +249,11 @@ fn snapshot_pmenu(
     if pmenu.hidden {
         return;
     }
-    let Some(anchor_pix) = pix_gridmap.get(&pmenu.anchor_grid_id) else {
-        eprintln!("pmenu: missing PixGrid {:?}", pmenu.anchor_grid_id);
-        return;
-    };
-    let (row, mut col) = pmenu.anchor_pos;
-    if row < 0 || col < 0 {
-        return;
-    }
-    if col >= 2 {
-        col -= 2;
-    }
     let model = pmenu.model.model();
-    let start_x = anchor_pix.matrix[row as usize][col as usize] as f64;
-    let start_y = pmenu.start_y(cell_metrics);
-    let pmenu_pix_grid = PixGrid::new(pmenu, cell_metrics, start_x, start_y);
-    grid_bg(snapshot, &pmenu_pix_grid, hl.bg());
+    let pmenu_pix_grid = PixModel::from_grid(&pmenu.model, cell_metrics.char_width as f32, 0);
+    grid_bg(snapshot, pmenu, hl.bg());
     snapshot_text(snapshot, cell_metrics, model, pmenu, &pmenu_pix_grid, hl);
-    grid_border(snapshot, pmenu, &pmenu_pix_grid, hl);
+    grid_border(snapshot, pmenu, hl);
 }
 
 pub fn snapshot_cursor<T: CursorRedrawCb + 'static>(
@@ -321,14 +269,11 @@ pub fn snapshot_cursor<T: CursorRedrawCb + 'static>(
         return;
     }
 
-    let ui_model = &grid.model;
-
-    // TODO monospace: i use this A LOT. it may be a macro?
     let ctx = if grid.monospace { mono_ctx } else { font_ctx };
 
     let cell_metrics = ctx.cell_metrics();
 
-    let CellMetrics { ascent, .. } = *cell_metrics;
+    let ui_model = &grid.model;
     let (cursor_row, cursor_col) = ui_model.get_flushed_cursor();
 
     let y = cell_metrics.get_y(cursor_row) + (grid.start_row as f64 * cell_metrics.line_height);
@@ -338,23 +283,18 @@ pub fn snapshot_cursor<T: CursorRedrawCb + 'static>(
         None => return,
     };
 
-    let space_size: i32 = cell_metrics.char_width as i32;
+    let space_size = cell_metrics.char_width as f32;
 
     let (pixel_width, x, until_x) =
         cursor_x(cursor_line, cursor_col, space_size, grid.sign_column_len());
-    let x = (x as f64 + grid.start_x(cell_metrics)) as i32;
+    let x = x + grid.rect.0;
 
     let fade_percentage = cursor.alpha();
     let cell = &cursor_line.line[cursor_col];
 
     let (clip_y, clip_width, clip_height) =
         cursor_rect(cursor.mode_info(), cell_metrics, y, pixel_width as f64);
-    let clip_rect = Rect::new(
-        x as f32,
-        clip_y as f32,
-        clip_width as f32,
-        clip_height as f32,
-    );
+    let clip_rect = Rect::new(x, clip_y as f32, clip_width as f32, clip_height as f32);
     let x = x as f64;
 
     let bg_alpha = transparency.background_alpha;
@@ -389,9 +329,10 @@ pub fn snapshot_cursor<T: CursorRedrawCb + 'static>(
         let cell_start_line_x = x as f64 - until_x as f64;
         for item in &*cursor_line.item_line[cell_start_col as usize] {
             if item.glyphs().is_some() {
-                if let Some(ref render_node) =
-                    item.new_render_node(&fg, (cell_start_line_x as f32, (y + ascent) as f32))
-                {
+                if let Some(ref render_node) = item.new_render_node(
+                    &fg,
+                    (cell_start_line_x as f32, (y + cell_metrics.ascent) as f32),
+                ) {
                     snapshot.append_node(render_node);
                 }
             }
@@ -600,7 +541,7 @@ fn plan_and_snapshot_cell_bg<'a>(
     cell: &'a ui_model::Cell,
     cell_metrics: &CellMetrics,
     (row, col): (usize, usize),
-    line_x: &Box<[i32]>,
+    line_x: &PixLine,
 ) {
     if let Some(cell_bg) = hl.cell_bg(cell).filter(|bg| *bg != hl.bg()) {
         if let Some(cur_pending_bg) = pending_bg {
@@ -725,12 +666,13 @@ fn snapshot_cell(
 pub fn shape_dirty(
     ctx: &context::Context,
     ui_model: &mut ui_model::UiModel,
-    pix_grid: &mut PixGrid,
+    pix: &mut PixModel,
     hl: &HighlightMap,
-    update_pix_grid: bool,
+    update_pix: bool,
     sign_column: usize,
+    monospace: bool,
 ) {
-    let space_width = ctx.cell_metrics().char_width as i32;
+    let space_width = ctx.cell_metrics().char_width as f32;
 
     for (row, line) in ui_model.model_mut().iter_mut().enumerate() {
         if !line.dirty_line {
@@ -763,8 +705,12 @@ pub fn shape_dirty(
             cell.dirty = false;
         }
 
-        if update_pix_grid {
-            pix_grid.update_line(line, row, space_width, sign_column);
+        if update_pix {
+            if monospace {
+                pix.update_line_monospace(row, space_width);
+            } else {
+                pix.update_line(line, row, space_width, sign_column);
+            }
         }
 
         line.dirty_line = false;

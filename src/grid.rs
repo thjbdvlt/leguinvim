@@ -4,23 +4,15 @@ use std::rc::Rc;
 use fnv::FnvHashMap;
 
 use crate::highlight::{Highlight, HighlightMap};
-use crate::pix_grid::GRID_WIDTH_RATIO;
+use crate::pix_grid::{GRID_WIDTH_RATIO, PixModel};
 use crate::render::CellMetrics;
 use crate::ui_model::{ModelRect, UiModel};
 use nvim_rs::Value;
 
-pub const PMENU_GRID: u64 = 0;
 pub const STATUS_GRID: u64 = 1;
 
 pub struct GridMap {
     pub grids: FnvHashMap<u64, Grid>,
-
-    /* below are special grids, not managed by neovim, i.e. "virtual" grids.
-     * these are not real "grids"  but
-     * we use existing structs instead of creating new ones.
-     * if there's more than one, we could create an array/map.
-     * but for now, there's just pmenu.
-     * */
     pub pmenu: Grid,
 }
 
@@ -114,7 +106,7 @@ impl GridMap {
     }
 }
 
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub struct Grid {
     pub model: UiModel,
     pub id: u64,
@@ -132,25 +124,29 @@ pub struct Grid {
     pub monospace: bool,
 
     pub border: [bool; 4],
+    pub pix: PixModel,
+    pub rect: (f32, f32, f32, f32),
 }
 
 impl Grid {
     pub fn new(id: u64) -> Self {
         Grid {
-            model: UiModel::default(),
             id,
-            start_row: 0,  // split window
-            start_col: 0,  // split window
-            hidden: false, // e.g. tabs
-            floating: false,
-            anchor: String::from(""),
-            anchor_grid_id: 0,
-            zindex: 0,
-            compindex: 0,
-            border_removed: false,
-            border: [false, false, false, false], // top, right, bottom, left
-            anchor_pos: (-1, -1),
-            monospace: false,
+            // model: UiModel::default(),
+            // start_row: 0,  // split window
+            // start_col: 0,  // split window
+            // hidden: false, // e.g. tabs
+            // floating: false,
+            // anchor: String::from(""),
+            // anchor_grid_id: 0,
+            // zindex: 0,
+            // compindex: 0,
+            // border_removed: false,
+            // border: [false, false, false, false], // top, right, bottom, left
+            // anchor_pos: (-1, -1),
+            // monospace: false,
+            // pix: PixModel::default(),
+            ..Grid::default()
         }
     }
 
@@ -161,17 +157,18 @@ impl Grid {
             zindex: 1000,
             border_removed: true,
             border: [true, true, true, true],
-            ..Grid::new(PMENU_GRID)
+            ..Grid::default()
         }
     }
 
     pub fn set_pos(&mut self, start_row: i64, start_col: i64) {
         self.start_row = start_row;
         self.start_col = start_col;
-        self.border[0] = start_row > 0; // top
-        self.border[1] = false; // right
-        self.border[2] = false; // bottom
-        self.border[3] = start_col > 0; // left
+        self.border = [start_row > 0, false, false, start_col > 0];
+        // self.border[0] = start_row > 0; // top
+        // self.border[1] = false; // right
+        // self.border[2] = false; // bottom
+        // self.border[3] = start_col > 0; // left
     }
 
     pub fn set_float_pos(&mut self, row: i64, col: i64, zindex: u64, anchor_grid: u64) {
@@ -213,9 +210,10 @@ impl Grid {
         false
     }
 
-    pub fn resize(&mut self, columns: u64, rows: u64) {
-        if self.model.columns != columns as usize || self.model.rows != rows as usize {
-            self.model = self.model.resized(columns as usize, rows as usize);
+    pub fn resize(&mut self, columns: usize, rows: usize) {
+        if self.model.columns != columns || self.model.rows != rows {
+            self.model = self.model.resized(columns, rows);
+            self.pix = PixModel::new(columns, rows);
         }
     }
 
@@ -249,6 +247,15 @@ impl Grid {
         } else {
             self.model.columns as f64 * cell_metrics.char_width / GRID_WIDTH_RATIO
         }
+    }
+
+    pub fn set_rect(&mut self, cell_metrics: &CellMetrics) {
+        self.rect = (
+            self.start_x(cell_metrics) as f32,
+            self.start_y(cell_metrics) as f32,
+            self.width(cell_metrics) as f32,
+            self.height(cell_metrics) as f32,
+        );
     }
 
     pub fn height(&self, cell_metrics: &CellMetrics) -> f64 {

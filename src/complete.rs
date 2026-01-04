@@ -88,7 +88,7 @@ impl Pmenu {
         let rows = rows - pmenu_grid.start_row as usize;
         if let Some((sel_idx, items)) = self.get_items(rows) {
             let columns = longest(items);
-            pmenu_grid.resize(columns as u64, items.len() as u64);
+            pmenu_grid.resize(columns, items.len());
             pmenu_grid.complete_items(items, sel_idx, hl);
         }
     }

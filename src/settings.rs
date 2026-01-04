@@ -48,7 +48,7 @@ impl State {
         shell.set_font_desc(
             &self.gnome_interface_settings.string("monospace-font-name"),
             false,
-        ); // TODO monospace?
+        );
         self.font_source = FontSource::Gnome;
     }
 }

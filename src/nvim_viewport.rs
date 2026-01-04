@@ -159,13 +159,8 @@ impl WidgetImpl for NvimViewportObject {
             let mono_ctx = &render_state.mono_ctx;
             let mono_metrics = mono_ctx.cell_metrics();
             if inner.snapshot_cache.is_none() {
-                inner.snapshot_cache = snapshot_all_grids(
-                    cell_metrics,
-                    mono_metrics,
-                    &state.grids,
-                    &state.pix_grids,
-                    hl,
-                );
+                inner.snapshot_cache =
+                    snapshot_all_grids(cell_metrics, mono_metrics, &state.grids, hl);
             }
             if let Some(ref cached_snapshot) = inner.snapshot_cache {
                 let push_opacity = transparency.filled_alpha < 0.99999;
