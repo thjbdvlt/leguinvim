@@ -3,27 +3,27 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::ops::Deref;
 use std::rc::Rc;
-use std::sync::{mpsc, Arc};
+use std::sync::{Arc, mpsc};
 use std::thread;
 
 use log::{debug, error};
 
-use futures::{executor::block_on, FutureExt};
+use futures::{FutureExt, executor::block_on};
 
 use tokio::sync::{Mutex as AsyncMutex, Notify};
 
-use gdk::{prelude::*, Display, ModifierType};
+use gdk::{Display, ModifierType, prelude::*};
 use gio::ApplicationCommandLine;
-use gtk::prelude::*;
 use gtk::Notebook;
+use gtk::prelude::*;
 use pango::FontDescription;
 
 use nvim_rs::Value;
 
-use crate::color::{Color, COLOR_BLACK, COLOR_WHITE};
+use crate::color::{COLOR_BLACK, COLOR_WHITE, Color};
 use crate::complete;
 use crate::grid::GridMap;
-use crate::highlight::{is_line_nr_hi, BackgroundState, HighlightMap};
+use crate::highlight::{BackgroundState, HighlightMap, is_line_nr_hi};
 use crate::misc::{decode_uri, escape_filename, split_at_comma};
 use crate::nvim::{
     self, CallErrorExt, ErrorReport, NeovimApiInfo, NeovimClient, NormalError, NvimHandler,
@@ -31,20 +31,20 @@ use crate::nvim::{
 };
 use crate::settings::{FontSource, Settings};
 use crate::ui_model::ModelRect;
-use crate::{spawn_timeout, spawn_timeout_user_err, NvimTransport};
+use crate::{NvimTransport, spawn_timeout, spawn_timeout_user_err};
 
+use crate::Args;
 use crate::cursor::{Cursor, CursorRedrawCb};
 use crate::input;
 use crate::input::keyval_to_input_string;
 use crate::mode;
 use crate::nvim_viewport::NvimViewport;
-use crate::pix_grid::{PixGridMap, GRID_WIDTH_RATIO};
+use crate::pix_grid::{GRID_WIDTH_RATIO, PixGridMap};
 use crate::render;
 use crate::render::CellMetrics;
 use crate::subscriptions::{SubscriptionHandle, SubscriptionKey, Subscriptions};
 use crate::tabline::Tabline;
 use crate::ui::{Components, UiMutex};
-use crate::Args;
 
 const DEFAULT_FONT_NAME: &str = "Liberation Sans 12";
 const DEFAULT_FONT_NAME_MONO: &str = "Fira Code 12";
@@ -569,7 +569,7 @@ impl State {
                     Value::Array(vec![
                         "nvim_command".into(),
                         Value::Array(vec![
-                            "au VimResized * ++once cal rpcnotify(1, 'resized')".into()
+                            "au VimResized * ++once cal rpcnotify(1, 'resized')".into(),
                         ]),
                     ]),
                     Value::Array(vec![
@@ -1490,7 +1490,7 @@ fn show_nvim_start_error(
             });
         }
         NvimInitError::MissingCapability(_) => unreachable!(),
-        NvimInitError::TcpConnectError { ref addr, .. } => {
+        NvimInitError::TcpConnectError { addr, .. } => {
             let addr = addr.to_string();
             let source = err.source();
             glib::idle_add_once(move || {
@@ -1502,7 +1502,7 @@ fn show_nvim_start_error(
             });
         }
         #[cfg(unix)]
-        NvimInitError::UnixConnectError { ref addr, .. } => {
+        NvimInitError::UnixConnectError { addr, .. } => {
             let addr = addr.to_string_lossy().to_string();
             let source = err.source();
             glib::idle_add_once(move || {

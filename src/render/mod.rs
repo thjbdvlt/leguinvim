@@ -7,10 +7,10 @@ use log::warn;
 
 use crate::{
     color,
-    cursor::{cursor_rect, Cursor, CursorRedrawCb},
+    cursor::{Cursor, CursorRedrawCb, cursor_rect},
     grid::{Grid, GridMap},
     highlight::HighlightMap,
-    pix_grid::{cursor_x, PixGrid, PixGridMap},
+    pix_grid::{PixGrid, PixGridMap, cursor_x},
     shell::TransparencySettings,
     ui_model::{self, Line},
 };
@@ -324,11 +324,7 @@ pub fn snapshot_cursor<T: CursorRedrawCb + 'static>(
     let ui_model = &grid.model;
 
     // TODO monospace: i use this A LOT. it may be a macro?
-    let ctx = if grid.monospace {
-        mono_ctx
-    } else {
-        font_ctx
-    };
+    let ctx = if grid.monospace { mono_ctx } else { font_ctx };
 
     let cell_metrics = ctx.cell_metrics();
 

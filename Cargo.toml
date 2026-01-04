@@ -7,7 +7,7 @@ authors = [
     "thjbdvlt <thjbdvlt@e.mail.ch>",
 ]
 build = "build.rs"
-edition = "2018"
+edition = "2024"
 license = "GPLv3"
 
 [features]

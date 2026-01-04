@@ -36,9 +36,9 @@ use tokio_util::compat::*;
 use futures::future::{BoxFuture, FutureExt};
 
 use nvim_rs::{
+    UiAttachOptions, Value,
     compat::tokio::Compat,
     error::{CallError, DecodeError, LoopError},
-    UiAttachOptions, Value,
 };
 
 #[derive(Debug)]
@@ -113,7 +113,7 @@ impl NvimInitError {
     }
 
     pub fn cmd(&self) -> Option<&String> {
-        if let Self::ResponseError { ref cmd, .. } = self {
+        if let Self::ResponseError { cmd, .. } = self {
             cmd.as_ref()
         } else {
             None
@@ -146,11 +146,11 @@ impl error::Error for NvimInitError {
 
     fn cause(&self) -> Option<&dyn error::Error> {
         match self {
-            Self::ResponseError { ref source, .. } | Self::TcpConnectError { ref source, .. } => {
+            Self::ResponseError { source, .. } | Self::TcpConnectError { source, .. } => {
                 Some(source.as_ref())
             }
             #[cfg(unix)]
-            Self::UnixConnectError { ref source, .. } => Some(source.as_ref()),
+            Self::UnixConnectError { source, .. } => Some(source.as_ref()),
             Self::MissingCapability(_) => None,
         }
     }
