@@ -10,6 +10,7 @@ forked from [neovim-gtk](https://github.com/lyude/neovim-gtk).
 ```bash
 # download linux binary (other platforms binaries will come soons!)
 wget https://github.com/thjbdvlt/leguinvim/releases/latest/download/leguinvim
+cp leguinvim ~/.local/bin/ # or wherever you want to install it
 
 # or build (requires cargo)
 git clone https://github.com/thjbdvlt/leguinvim leguinvim
