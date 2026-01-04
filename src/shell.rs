@@ -46,7 +46,8 @@ use crate::tabline::Tabline;
 use crate::ui::{Components, UiMutex};
 use crate::Args;
 
-const DEFAULT_FONT_NAME: &str = "DejaVu Sans Mono 12";
+const DEFAULT_FONT_NAME: &str = "Liberation Sans 12";
+const DEFAULT_FONT_NAME_MONO: &str = "Fira Code 12";
 pub const MINIMUM_SUPPORTED_NVIM_VERSION: &str = "0.3.2";
 
 macro_rules! idle_cb_call {
@@ -61,14 +62,16 @@ macro_rules! idle_cb_call {
 
 pub struct RenderState {
     pub font_ctx: render::Context,
+    pub mono_ctx: render::Context,
     pub hl: HighlightMap,
     pub mode: mode::Mode,
 }
 
 impl RenderState {
-    pub fn new(pango_context: pango::Context) -> Self {
+    pub fn new(pango_context: pango::Context, mono_context: pango::Context) -> Self {
         RenderState {
             font_ctx: render::Context::new(pango_context),
+            mono_ctx: render::Context::new(mono_context),
             hl: HighlightMap::new(),
             mode: mode::Mode::new(),
         }
@@ -186,7 +189,11 @@ impl State {
         let pango_context = nvim_viewport.create_pango_context();
         pango_context.set_font_description(Some(&FontDescription::from_string(DEFAULT_FONT_NAME)));
 
-        let mut render_state = RenderState::new(pango_context);
+        let mono_context = nvim_viewport.create_pango_context();
+        mono_context
+            .set_font_description(Some(&FontDescription::from_string(DEFAULT_FONT_NAME_MONO)));
+
+        let mut render_state = RenderState::new(pango_context, mono_context);
         render_state.hl.set_use_cterm(options.cterm_colors);
 
         let render_state = Rc::new(RefCell::new(render_state));
@@ -305,8 +312,10 @@ impl State {
         }
     }
 
-    pub fn set_font_desc(&mut self, desc: &str) {
+    pub fn set_font_desc(&mut self, desc: &str, monospace: bool) {
         let font_description = FontDescription::from_string(desc);
+
+        // TODO monospace: ensure the font is not too large neither to high
 
         if font_description.size() <= 0 {
             error!("Font size must be > 0");
@@ -316,16 +325,25 @@ impl State {
         let pango_context = self.nvim_viewport.create_pango_context();
         pango_context.set_font_description(Some(&font_description));
 
-        self.render_state
-            .borrow_mut()
-            .font_ctx
-            .update(pango_context);
+        if monospace {
+            self.render_state
+                .borrow_mut()
+                .mono_ctx
+                .update(pango_context);
+        } else {
+            self.render_state
+                .borrow_mut()
+                .font_ctx
+                .update(pango_context);
+        }
+
         self.grids.clear_glyphs();
         self.try_nvim_resize();
         self.queue_draw(RedrawMode::All);
     }
 
     pub fn set_font_features(&mut self, font_features: String) {
+        eprintln!("set_font_features {font_features:?}");
         let font_features = render::FontFeatures::from(font_features);
 
         self.render_state
@@ -427,11 +445,15 @@ impl State {
         let render_state = self.render_state.borrow();
         let (font_ctx, hl) = (&render_state.font_ctx, &render_state.hl);
         let cell_metrics = font_ctx.cell_metrics();
-        self.pix_grids.fit_gridmap(&self.grids, cell_metrics);
+        let mono_ctx = &render_state.mono_ctx;
+        let mono_metrics = &mono_ctx.cell_metrics();
+        self.pix_grids
+            .fit_gridmap(&self.grids, cell_metrics, mono_metrics);
         for (id, grid) in self.grids.grids.iter_mut() {
             let pg = self.pix_grids.get_mut(id).unwrap();
             let sign_column = grid.sign_column_len();
-            render::shape_dirty(font_ctx, &mut grid.model, pg, hl, true, sign_column);
+            let ctx = if grid.monospace { mono_ctx } else { font_ctx };
+            render::shape_dirty(ctx, &mut grid.model, pg, hl, true, sign_column);
         }
         let pmenu = &mut self.grids.pmenu;
         if !pmenu.hidden {
@@ -610,16 +632,20 @@ impl State {
     }
 
     pub fn set_font(&mut self, font_desc: String) {
-        self.set_font_rpc(&font_desc);
+        self.set_font_rpc(&font_desc, false);
     }
 
-    pub fn set_font_rpc(&mut self, font_desc: &str) {
+    pub fn set_font_mono(&mut self, font_desc: String) {
+        self.set_font_rpc(&font_desc, true);
+    }
+
+    pub fn set_font_rpc(&mut self, font_desc: &str, monospace: bool) {
         {
             let mut settings = self.settings.borrow_mut();
             settings.set_font_source(FontSource::Rpc);
         }
 
-        self.set_font_desc(font_desc);
+        self.set_font_desc(font_desc, monospace);
     }
 
     pub fn on_command(&mut self, command: nvim::NvimCommand) {
@@ -1188,8 +1214,8 @@ impl Shell {
     }
 
     #[cfg(unix)]
-    pub fn set_font_desc(&self, font_name: &str) {
-        self.state.borrow_mut().set_font_desc(font_name);
+    pub fn set_font_desc(&self, font_name: &str, monospace: bool) {
+        self.state.borrow_mut().set_font_desc(font_name, monospace);
     }
 
     pub fn grab_focus(&self) {
@@ -1766,7 +1792,8 @@ impl State {
         }
         grid.resize(columns, rows);
         grid.start_row = row as i64;
-        grid.is_float = true;
+        grid.floating = true;
+        grid.monospace = false;
         grid.border[0] = scrolled;
         grid.zindex = 200;
         RedrawMode::All
@@ -1976,14 +2003,14 @@ impl State {
                         if desc.size() > 0
                             && exists_fonts.contains(&desc.family().unwrap_or_else(|| "".into()))
                         {
-                            self.set_font_rpc(font);
+                            self.set_font_rpc(font, false); // TODO monospace
                             return RedrawMode::All;
                         }
                     }
 
                     // font does not exists? set first one
                     if !fonts.is_empty() {
-                        self.set_font_rpc(&fonts[0]);
+                        self.set_font_rpc(&fonts[0], false); // TODO monospace
                         return RedrawMode::All;
                     }
                 }

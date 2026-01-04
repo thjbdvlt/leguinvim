@@ -87,33 +87,23 @@ enum RenderStepKind {
 
 pub fn snapshot_all_grids(
     cell_metrics: &CellMetrics,
+    mono_metrics: &CellMetrics,
     gridmap: &GridMap,
     pix_gridmap: &PixGridMap,
     hl: &HighlightMap,
 ) -> Option<gsk::RenderNode> {
     let mut snapshot = gtk::Snapshot::new();
     let grids = gridmap.sorted_visible();
-
     for (id, grid) in grids.iter() {
-        if let Some(pix_grid) = pix_gridmap.get(*id) {
-            if pix_grid.columns != grid.model.columns {
-                snapshot_grid(
-                    &mut snapshot,
-                    cell_metrics,
-                    &grid,
-                    &PixGrid::new(grid, cell_metrics, 0.0),
-                    hl,
-                );
-            } else {
-                snapshot_grid(&mut snapshot, cell_metrics, &grid, pix_grid, hl);
-            }
+        let pix_grid = pix_gridmap.get(*id).unwrap();
+        let cm = if grid.monospace {
+            mono_metrics
         } else {
-            eprintln!("missing PixGrid {id}");
-        }
+            cell_metrics
+        };
+        snapshot_grid(&mut snapshot, cm, &grid, pix_grid, hl);
     }
-
     snapshot_pmenu(&mut snapshot, gridmap, pix_gridmap, cell_metrics, hl);
-
     snapshot.to_node()
 }
 
@@ -252,20 +242,38 @@ fn snapshot_text(
     hl: &HighlightMap,
 ) {
     let line_height = cell_metrics.line_height as f32;
-    let mut y = (line_height * grid.start_row as f32) + cell_metrics.ascent as f32;
-    for (row, line) in model.iter().enumerate() {
-        let pix_row = &pix_grid.matrix[row];
-        for (col, cell) in line.line.iter().enumerate() {
-            snapshot_cell(
-                &snapshot,
-                &line.item_line[col],
-                hl,
-                cell,
-                pix_row[col] as f32,
-                y,
-            );
+    let mut y = (pix_grid.start_y + cell_metrics.ascent) as f32;
+    if !grid.monospace {
+        for (row, line) in model.iter().enumerate() {
+            let pix_row = &pix_grid.matrix[row];
+            for (col, cell) in line.line.iter().enumerate() {
+                snapshot_cell(
+                    &snapshot,
+                    &line.item_line[col],
+                    hl,
+                    cell,
+                    pix_row[col] as f32,
+                    y,
+                );
+            }
+            y += line_height;
         }
-        y += line_height;
+    } else {
+        let char_width = cell_metrics.char_width as f32;
+        let mut y = (pix_grid.start_y + cell_metrics.ascent) as f32;
+        for line in model {
+            for (col, cell) in line.line.iter().enumerate() {
+                snapshot_cell(
+                    &snapshot,
+                    &line.item_line[col],
+                    hl,
+                    cell,
+                    pix_grid.start_x as f32 + (col as f32 * char_width),
+                    y,
+                );
+            }
+            y += line_height;
+        }
     }
 }
 
@@ -293,7 +301,8 @@ fn snapshot_pmenu(
     }
     let model = pmenu.model.model();
     let start_x = anchor_pix.matrix[row as usize][col as usize] as f64;
-    let pmenu_pix_grid = PixGrid::new(pmenu, cell_metrics, start_x);
+    let start_y = pmenu.start_y(cell_metrics);
+    let pmenu_pix_grid = PixGrid::new(pmenu, cell_metrics, start_x, start_y);
     grid_bg(snapshot, &pmenu_pix_grid, hl.bg());
     snapshot_text(snapshot, cell_metrics, model, pmenu, &pmenu_pix_grid, hl);
     grid_border(snapshot, pmenu, &pmenu_pix_grid, hl);
@@ -303,6 +312,7 @@ pub fn snapshot_cursor<T: CursorRedrawCb + 'static>(
     snapshot: &gtk::Snapshot,
     cursor: &Cursor<T>,
     font_ctx: &Context,
+    mono_ctx: &Context,
     grid: &Grid,
     hl: &HighlightMap,
     transparency: TransparencySettings,
@@ -313,7 +323,15 @@ pub fn snapshot_cursor<T: CursorRedrawCb + 'static>(
 
     let ui_model = &grid.model;
 
-    let cell_metrics = font_ctx.cell_metrics();
+    // TODO monospace: i use this A LOT. it may be a macro?
+    let ctx = if grid.monospace {
+        mono_ctx
+    } else {
+        font_ctx
+    };
+
+    let cell_metrics = ctx.cell_metrics();
+
     let CellMetrics { ascent, .. } = *cell_metrics;
     let (cursor_row, cursor_col) = ui_model.get_flushed_cursor();
 
@@ -325,6 +343,7 @@ pub fn snapshot_cursor<T: CursorRedrawCb + 'static>(
     };
 
     let space_size: i32 = cell_metrics.char_width as i32;
+
     let (pixel_width, x, until_x) =
         cursor_x(cursor_line, cursor_col, space_size, grid.sign_column_len());
     let x = (x as f64 + grid.start_x(cell_metrics)) as i32;
@@ -352,7 +371,7 @@ pub fn snapshot_cursor<T: CursorRedrawCb + 'static>(
 
     cursor.snapshot(
         snapshot,
-        font_ctx,
+        ctx,
         (x, y),
         cell,
         hl,

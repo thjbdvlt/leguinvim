@@ -122,14 +122,14 @@ pub struct Grid {
     pub start_row: i64,
     pub start_col: i64,
 
-    // Floating windows
-    pub is_float: bool,
+    pub floating: bool,
     pub zindex: u64,
     pub compindex: u64,
     pub anchor: String,
     pub anchor_grid_id: u64,
-    pub anchor_pos: (i64, i64), // for pmenu
+    pub anchor_pos: (i64, i64),
     pub border_removed: bool,
+    pub monospace: bool,
 
     pub border: [bool; 4],
 }
@@ -142,7 +142,7 @@ impl Grid {
             start_row: 0,  // split window
             start_col: 0,  // split window
             hidden: false, // e.g. tabs
-            is_float: false,
+            floating: false,
             anchor: String::from(""),
             anchor_grid_id: 0,
             zindex: 0,
@@ -150,13 +150,14 @@ impl Grid {
             border_removed: false,
             border: [false, false, false, false], // top, right, bottom, left
             anchor_pos: (-1, -1),
+            monospace: false,
         }
     }
 
     pub fn new_pmenu() -> Self {
         Grid {
             hidden: true,
-            is_float: true,
+            floating: true,
             zindex: 1000,
             border_removed: true,
             border: [true, true, true, true],
@@ -177,9 +178,10 @@ impl Grid {
         self.start_row = row;
         self.start_col = col;
         self.zindex = zindex;
-        self.is_float = true;
+        self.floating = true;
         self.border.fill(true);
         self.anchor_grid_id = anchor_grid;
+        self.monospace = true;
     }
 
     pub fn get_cursor(&self) -> (usize, usize) {
@@ -230,7 +232,11 @@ impl Grid {
     }
 
     pub fn start_x(&self, cell_metrics: &CellMetrics) -> f64 {
-        self.start_col as f64 * cell_metrics.char_width / GRID_WIDTH_RATIO
+        if self.monospace {
+            self.start_col as f64 * cell_metrics.char_width
+        } else {
+            self.start_col as f64 * cell_metrics.char_width / GRID_WIDTH_RATIO
+        }
     }
 
     pub fn start_y(&self, cell_metrics: &CellMetrics) -> f64 {
@@ -238,11 +244,15 @@ impl Grid {
     }
 
     pub fn width(&self, cell_metrics: &CellMetrics) -> f64 {
-        self.columns() as f64 * cell_metrics.char_width / GRID_WIDTH_RATIO
+        if self.monospace {
+            self.model.columns as f64 * cell_metrics.char_width
+        } else {
+            self.model.columns as f64 * cell_metrics.char_width / GRID_WIDTH_RATIO
+        }
     }
 
     pub fn height(&self, cell_metrics: &CellMetrics) -> f64 {
-        self.rows() as f64 * cell_metrics.line_height
+        self.model.rows as f64 * cell_metrics.line_height
     }
 
     pub fn sign_column_len(&self) -> usize {

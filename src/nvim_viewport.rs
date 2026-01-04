@@ -156,9 +156,16 @@ impl WidgetImpl for NvimViewportObject {
             // Render scenes get pretty huge here, so we cache them as often as possible
             let font_ctx = &render_state.font_ctx;
             let cell_metrics = font_ctx.cell_metrics();
+            let mono_ctx = &render_state.mono_ctx;
+            let mono_metrics = mono_ctx.cell_metrics();
             if inner.snapshot_cache.is_none() {
-                inner.snapshot_cache =
-                    snapshot_all_grids(cell_metrics, &state.grids, &state.pix_grids, hl);
+                inner.snapshot_cache = snapshot_all_grids(
+                    cell_metrics,
+                    mono_metrics,
+                    &state.grids,
+                    &state.pix_grids,
+                    hl,
+                );
             }
             if let Some(ref cached_snapshot) = inner.snapshot_cache {
                 let push_opacity = transparency.filled_alpha < 0.99999;
@@ -175,7 +182,8 @@ impl WidgetImpl for NvimViewportObject {
 
             if let Some(cursor) = state.cursor() {
                 if let Some(grid) = state.grids.get(state.cursor_grid) {
-                    snapshot_cursor(snapshot_in, cursor, font_ctx, grid, hl, transparency);
+                    // let pix_grid = &state.pix_grids.get(&state.cursor_grid).unwrap();
+                    snapshot_cursor(snapshot_in, cursor, font_ctx, mono_ctx, grid, hl, transparency);
                 }
             }
         } else {

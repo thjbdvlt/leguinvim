@@ -23,3 +23,13 @@ the project could thus have been named *gtkleguinvim*. but it's too long.
 ![](./screenshots/completion.png)
 
 ![](./screenshots/fzf-and-split.png)
+
+![](./screenshots/fzf-lua-monospace.png)
+
+to configure __leguinvim__, you may:
+
+```vim
+" ~/.config/nvim/ginit.vim
+call rpcnotify(1, 'Gui', 'Font', 'Liberation Sans 20')  " main font
+call rpcnotify(1, 'Gui', 'FontMono', 'Fira Code 16')  " monospace font (floating windows)
+```

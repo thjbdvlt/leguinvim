@@ -25,14 +25,12 @@ fn new_pix_model(columns: usize, rows: usize, space_width: i32) -> PixModel {
 }
 
 impl PixGrid {
-    pub fn new(grid: &Grid, cell_metrics: &CellMetrics, start_x: f64) -> PixGrid {
+    pub fn new(grid: &Grid, cell_metrics: &CellMetrics, start_x: f64, start_y: f64) -> PixGrid {
         let model = grid.model.model();
 
         /* get infos about grid position and size */
         let (rows, columns) = (grid.model.rows, grid.model.columns);
         let space_width = cell_metrics.char_width as i32;
-        let start_x = start_x + grid.start_x(cell_metrics);
-        let start_y = grid.start_y(cell_metrics);
         let width = grid.width(cell_metrics);
         let height = grid.height(cell_metrics);
 
@@ -151,36 +149,34 @@ impl PixGridMap {
     pub fn get_mut(&mut self, id: &u64) -> Option<&mut PixGrid> {
         self.grids.get_mut(id)
     }
-    pub fn get_or_create(
-        &mut self,
-        id: &u64,
-        grid: &Grid,
-        cell_metrics: &CellMetrics,
-    ) -> &mut PixGrid {
-        if self.grids.contains_key(&id) {
-            return self.grids.get_mut(&id).unwrap();
-        }
-        self.insert(grid, cell_metrics);
-        self.get_mut(id).unwrap()
-    }
     pub fn new() -> Self {
         PixGridMap {
             grids: FnvHashMap::default(),
             pmenu: PixGrid::empty(),
         }
     }
-    pub fn insert(&mut self, grid: &Grid, cell_metrics: &CellMetrics) {
+    pub fn insert(&mut self, grid: &Grid, cell_metrics: &CellMetrics, start_x: f64, start_y: f64) {
         self.grids
-            .insert(grid.id, PixGrid::new(grid, cell_metrics, 0.0));
+            .insert(grid.id, PixGrid::new(grid, cell_metrics, start_x, start_y));
     }
-    pub fn fit_gridmap(&mut self, gridmap: &GridMap, cell_metrics: &CellMetrics) {
+    pub fn fit_gridmap(
+        &mut self,
+        gridmap: &GridMap,
+        cell_metrics: &CellMetrics,
+        mono_metrics: &CellMetrics,
+    ) {
         for (id, grid) in gridmap.grids.iter() {
             if let Some(pg) = self.get_mut(id) {
                 if pg.fit(grid) {
                     continue;
                 }
             }
-            self.insert(grid, cell_metrics);
+            let cm = if grid.monospace {
+                mono_metrics
+            } else {
+                cell_metrics
+            };
+            self.insert(grid, cm, grid.start_x(cm), grid.start_y(cm));
         }
     }
 }
