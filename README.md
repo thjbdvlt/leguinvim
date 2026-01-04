@@ -4,8 +4,18 @@ for people who want to use neovim for prose writing: sf novel, master thesis...
 
 may look awful with some plugins. still very buggy.
 
-forked from [neovim-gtk](https://github.com/lyude/neovim-gtk).
-(lot of removals and changes.)
+if you want to try it anyway, check how to [install](#install) and [configure](#configure) it.
+
+the name is a reference to sf writer [ursula k le guin](https://de.wikipedia.org/wiki/Ursula_K._Le_Guin): neovim makes possible to edit text at the speed of thought, just as fast as le guin's characters with their telepathy abilities and their ansibles.
+the project could thus have been named *gtkleguinvim*. but it's too long.
+
+![](./screenshots/completion.png)
+
+![](./screenshots/floating-monospace.png)
+
+![](./screenshots/fzf-lua-monospace.png)
+
+# install
 
 ```bash
 # download linux binary (other platforms binaries will come soons!)
@@ -18,14 +28,7 @@ cd leguinvim
 make install
 ```
 
-the name is a reference to sf writer [ursula k le guin](https://de.wikipedia.org/wiki/Ursula_K._Le_Guin): neovim makes possible to edit text at the speed of thought, just as fast as le guin's characters with their telepathy abilities and their ansibles.
-the project could thus have been named *gtkleguinvim*. but it's too long.
-
-![](./screenshots/completion.png)
-
-![](./screenshots/floating-monospace.png)
-
-![](./screenshots/fzf-lua-monospace.png)
+# configure
 
 to configure __leguinvim__, use a `ginit.vim` file in your neovim config directory:
 
@@ -41,3 +44,8 @@ call rpcnotify(1, 'Gui', 'FontMono', 'Fira Code 12') " default
 " use monospace font for floating windows. 0 or 1 (default)
 call rpcnotify(1, 'Gui', 'MonoFloat', 1)
 ```
+
+# source
+
+__leguinvim__ is forked from [neovim-gtk](https://github.com/lyude/neovim-gtk).
+(lot of removals and changes.)
