@@ -1,6 +1,7 @@
+use fnv::FnvHashMap;
 use std::collections::HashSet;
 
-use pango::{self, prelude::*};
+use pango::{self, FontDescription, prelude::*};
 
 use super::itemize::ItemizeIterator;
 use crate::ui_model::StyledLine;
@@ -9,19 +10,65 @@ pub struct Context {
     font_metrics: FontMetrix,
     font_features: FontFeatures,
     line_space: i32,
+    size: i32,
+}
+
+pub struct SubCtx {
+    font_map: pango::FontMap,
+    super_desc: FontDescription,
+    ctxs: FnvHashMap<i32, Context>,
+}
+
+impl SubCtx {
+    pub fn new(pango_context: pango::Context, font_desc: FontDescription) -> Self {
+        Self {
+            font_map: pango_context.font_map().unwrap(),
+            super_desc: FontDescription::from_string(&font_desc.to_str()),
+            ctxs: FnvHashMap::default(),
+        }
+    }
+
+    pub fn get(&self, size: i32) -> Option<&Context> {
+        self.ctxs.get(&size)
+    }
+
+    pub fn max_smaller_size(&self, ratio: f32) -> i32 {
+        ((self.super_desc.size() as f32 * ratio) * 0.8).trunc() as i32
+    }
+
+    fn add_smaller_font(&mut self, new_size: i32) {
+        let mut new_desc = self.super_desc.clone();
+        new_desc.set_size(new_size);
+        let pango_ctx = self.font_map.create_context();
+        pango_ctx.set_font_description(Some(&new_desc));
+        self.ctxs
+            .insert(new_size, Context::new(pango_ctx, new_size));
+    }
+
+    pub fn get_or_create(&mut self, size: i32) -> &Context {
+        if !self.ctxs.contains_key(&size) {
+            self.add_smaller_font(size);
+        }
+        self.get(size).unwrap()
+    }
 }
 
 impl Context {
-    pub fn new(pango_context: pango::Context) -> Self {
+    pub fn new(pango_context: pango::Context, size: i32) -> Self {
         Context {
             line_space: 0,
             font_metrics: FontMetrix::new(pango_context, 0),
             font_features: FontFeatures::new(),
+            size,
         }
     }
 
     pub fn update(&mut self, pango_context: pango::Context) {
         self.font_metrics = FontMetrix::new(pango_context, self.line_space);
+    }
+
+    pub fn size(&self) -> i32 {
+        self.size
     }
 
     pub fn update_font_features(&mut self, font_features: FontFeatures) {

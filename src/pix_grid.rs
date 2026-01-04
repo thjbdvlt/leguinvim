@@ -12,39 +12,29 @@ pub struct PixModel {
     rows: usize,
 }
 
-fn new_pix_matrix(columns: usize, rows: usize, space_width: f32) -> PixMatrix {
-    vec![vec![space_width; columns + 1].into_boxed_slice(); rows].into_boxed_slice()
-}
-
 impl PixModel {
     pub fn new(columns: usize, rows: usize) -> Self {
         PixModel {
-            matrix: new_pix_matrix(columns, rows, 0.0),
             columns,
             rows,
-            ..PixModel::default()
+            matrix: vec![vec![0.0; columns + 1].into_boxed_slice(); rows].into_boxed_slice(),
         }
     }
 
     pub fn from_grid(model: &UiModel, space_width: f32, sign_column: usize) -> Self {
         let model = model;
         let (rows, columns) = (model.rows, model.columns);
-        let matrix = new_pix_matrix(columns, rows, space_width);
-        let mut pix_model = PixModel {
-            matrix,
-            columns,
-            rows,
-            ..PixModel::default()
-        };
+        let mut pix_model = PixModel::new(columns, rows);
         for (row, line) in model.model().iter().enumerate() {
-            pix_model.update_line(line, row, space_width, sign_column);
+            pix_model.update(line, row, space_width, sign_column);
         }
         pix_model
     }
 
-    pub fn update_line(&mut self, line: &Line, row: usize, space_width: f32, sign_column: usize) {
+    pub fn update(&mut self, line: &Line, row: usize, space_width: f32, sign_column: usize) -> f32 {
         let pix_line = &mut self.matrix[row];
         pix_line.fill(space_width);
+        let mut last_non_space: usize = sign_column;
         for col in sign_column..self.columns {
             for item in &line.item_line[col] {
                 let glyphs = item.glyphs();
@@ -60,31 +50,33 @@ impl PixModel {
                                 pix_line[col + i] = 0.0;
                             }
                         }
+                        last_non_space = col + n as usize;
                     }
                 }
             }
         }
-        self.len_to_pos(row);
+        self.len_to_pos(row, last_non_space + 1)
     }
 
-    pub fn update_line_monospace(&mut self, row: usize, space_width: f32) {
+    pub fn update_mono(&mut self, row: usize, space_width: f32) -> f32 {
         self.matrix[row].fill(space_width);
-        self.len_to_pos(row);
+        self.len_to_pos(row, self.matrix[row].len())
     }
 
-    fn len_to_pos(&mut self, row: usize) {
+    fn len_to_pos(&mut self, row: usize, last_non_space: usize) -> f32 {
         /* compute the horizontal position in pixel of each cell
          * we just reuse the same array here, because the previous one
          * is not usefull anymore
          * */
         let pix_line = &mut self.matrix[row];
         let mut x: f32 = 0.0;
-        for i in 0..self.columns {
+        for i in 0..last_non_space {
             let len = pix_line[i];
             pix_line[i] = x;
             x += len;
         }
         pix_line[self.columns] = pix_line[self.columns - 1];
+        x
     }
 
     pub fn fit(&self, model: &UiModel) -> bool {

@@ -1,7 +1,7 @@
 mod context;
 mod itemize;
 
-pub use self::context::{CellMetrics, Context, FontFeatures};
+pub use self::context::{CellMetrics, Context, FontFeatures, SubCtx};
 
 use log::warn;
 
@@ -672,54 +672,69 @@ fn snapshot_cell(
 
 pub fn shape_dirty(
     ctx: &context::Context,
-    ui_model: &mut ui_model::UiModel,
-    pix: &mut PixModel,
+    sub_ctxs: &mut SubCtx,
+    grid: &mut Grid,
     hl: &HighlightMap,
     update_pix: bool,
-    sign_column: usize,
     monospace: bool,
 ) {
-    let space_width = ctx.cell_metrics().char_width as f32;
-
-    for (row, line) in ui_model.model_mut().iter_mut().enumerate() {
+    let cell_metrics = ctx.cell_metrics();
+    let space_width = cell_metrics.char_width as f32;
+    let sign_column = grid.sign_column_len();
+    let width = (grid.rect.0 + grid.rect.2) as f32;
+    for (row, line) in grid.model.model_mut().iter_mut().enumerate() {
         if !line.dirty_line {
             continue;
         }
-
-        let styled_line = ui_model::StyledLine::from(line, hl, ctx.font_features());
-        let items = ctx.itemize(&styled_line);
-        line.merge(&styled_line, &items);
-
-        for (col, cell) in line.line.iter_mut().enumerate() {
-            if cell.dirty {
-                for item in &mut *line.item_line[col] {
-                    let mut glyphs = pango::GlyphString::new();
-                    {
-                        let analysis = item.analysis();
-                        let offset = item.item.offset() as usize;
-                        let length = item.item.length() as usize;
-                        if let Some(line_str) = styled_line.line_str.get(offset..offset + length) {
-                            pango::shape(line_str, analysis, &mut glyphs);
-                        } else {
-                            warn!("Wrong itemize split");
-                        }
-                    }
-
-                    item.set_glyphs(glyphs);
-                }
-            }
-
-            cell.dirty = false;
-        }
-
-        if update_pix {
-            if monospace {
-                pix.update_line_monospace(row, space_width);
-            } else {
-                pix.update_line(line, row, space_width, sign_column);
-            }
-        }
-
+        shape_dirty_line(line, hl, ctx);
         line.dirty_line = false;
+        if !update_pix {
+            continue;
+        }
+        if monospace {
+            grid.pix.update_mono(row, space_width);
+            continue;
+        }
+        let x = grid.pix.update(line, row, space_width, sign_column);
+        if x <= width {
+            continue;
+        }
+        let mut ratio = 1.0;
+        loop {
+            ratio -= 0.05;
+            let size = sub_ctxs.max_smaller_size(ratio);
+            for cell in line.line.iter_mut().skip(sign_column) {
+                cell.dirty = true;
+            }
+            shape_dirty_line(line, hl, sub_ctxs.get_or_create(size));
+            if grid.pix.update(line, row, space_width, sign_column) <= width {
+                break;
+            }
+        }
+    }
+}
+
+fn shape_dirty_line(line: &mut Line, hl: &HighlightMap, ctx: &Context) {
+    let styled_line = ui_model::StyledLine::from(line, hl, ctx.font_features());
+    let items = ctx.itemize(&styled_line);
+    line.merge(&styled_line, &items);
+    for (col, cell) in line.line.iter_mut().enumerate() {
+        if cell.dirty {
+            for item in &mut *line.item_line[col] {
+                let mut glyphs = pango::GlyphString::new();
+                {
+                    let analysis = item.analysis();
+                    let offset = item.item.offset() as usize;
+                    let length = item.item.length() as usize;
+                    if let Some(line_str) = styled_line.line_str.get(offset..offset + length) {
+                        pango::shape(line_str, analysis, &mut glyphs);
+                    } else {
+                        warn!("Wrong itemize split");
+                    }
+                }
+                item.set_glyphs(glyphs);
+            }
+        }
+        cell.dirty = false;
     }
 }

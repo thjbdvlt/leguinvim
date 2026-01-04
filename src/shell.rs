@@ -68,10 +68,15 @@ pub struct RenderState {
 }
 
 impl RenderState {
-    pub fn new(pango_context: pango::Context, mono_context: pango::Context) -> Self {
+    pub fn new(
+        pango_context: pango::Context,
+        mono_context: pango::Context,
+        font_size: i32,
+        mono_size: i32,
+    ) -> Self {
         RenderState {
-            font_ctx: render::Context::new(pango_context),
-            mono_ctx: render::Context::new(mono_context),
+            font_ctx: render::Context::new(pango_context, font_size),
+            mono_ctx: render::Context::new(mono_context, mono_size),
             hl: HighlightMap::new(),
             mode: mode::Mode::new(),
         }
@@ -180,6 +185,7 @@ pub struct State {
 
     pub pmenu: complete::Pmenu,
     pub monospace_for_float: bool,
+    pub sub_ctxs: render::SubCtx,
 }
 
 impl State {
@@ -187,13 +193,21 @@ impl State {
         let nvim_viewport = NvimViewport::new();
 
         let pango_context = nvim_viewport.create_pango_context();
-        pango_context.set_font_description(Some(&FontDescription::from_string(DEFAULT_FONT_NAME)));
+        let font_desc = &FontDescription::from_string(DEFAULT_FONT_NAME);
+        pango_context.set_font_description(Some(font_desc));
+
+        let sub_ctxs = render::SubCtx::new(pango_context.clone(), font_desc.clone());
 
         let mono_context = nvim_viewport.create_pango_context();
-        mono_context
-            .set_font_description(Some(&FontDescription::from_string(DEFAULT_FONT_NAME_MONO)));
+        let mono_desc = &FontDescription::from_string(DEFAULT_FONT_NAME_MONO);
+        mono_context.set_font_description(Some(mono_desc));
 
-        let mut render_state = RenderState::new(pango_context, mono_context);
+        let mut render_state = RenderState::new(
+            pango_context,
+            mono_context,
+            font_desc.size(),
+            mono_desc.size(),
+        );
         render_state.hl.set_use_cterm(options.cterm_colors);
 
         let render_state = Rc::new(RefCell::new(render_state));
@@ -249,6 +263,7 @@ impl State {
 
             pmenu: complete::Pmenu::new(),
             monospace_for_float: true,
+            sub_ctxs,
         }
     }
 
@@ -329,6 +344,7 @@ impl State {
                 .mono_ctx
                 .update(pango_context);
         } else {
+            self.sub_ctxs = render::SubCtx::new(pango_context.clone(), font_description.clone());
             self.render_state
                 .borrow_mut()
                 .font_ctx
@@ -441,39 +457,28 @@ impl State {
 
     fn update_dirty_glyphs(&mut self) {
         let render_state = self.render_state.borrow();
-        let (font_ctx, hl) = (&render_state.font_ctx, &render_state.hl);
-        let mono_ctx = &render_state.mono_ctx;
+        let (font_ctx, mono_ctx, hl) = (
+            &render_state.font_ctx,
+            &render_state.mono_ctx,
+            &render_state.hl,
+        );
+
+        let pmenu_start_x = self.pmenu_start_x();
+        let small_ctxs = &mut self.sub_ctxs;
 
         /* neovim grids */
         for (_, grid) in self.grids.grids.iter_mut() {
-            let sign_column = grid.sign_column_len();
             let ctx = if grid.monospace { mono_ctx } else { font_ctx };
             grid.set_rect(ctx.cell_metrics());
-            render::shape_dirty(
-                ctx,
-                &mut grid.model,
-                &mut grid.pix,
-                hl,
-                true,
-                sign_column,
-                grid.monospace,
-            );
+            render::shape_dirty(ctx, small_ctxs, grid, hl, true, grid.monospace);
         }
 
         /* pmenu */
-        if let Some(pmenu_start_x) = self.pmenu_start_x() {
+        if let Some(pmenu_start_x) = pmenu_start_x {
             let pmenu = &mut self.grids.pmenu;
             pmenu.set_rect(font_ctx.cell_metrics());
             pmenu.rect.0 = pmenu_start_x;
-            render::shape_dirty(
-                font_ctx,
-                &mut pmenu.model,
-                &mut pmenu.pix,
-                hl,
-                false,
-                0,
-                false,
-            );
+            render::shape_dirty(font_ctx, small_ctxs, pmenu, hl, false, false);
         };
     }
 

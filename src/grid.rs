@@ -132,20 +132,6 @@ impl Grid {
     pub fn new(id: u64) -> Self {
         Grid {
             id,
-            // model: UiModel::default(),
-            // start_row: 0,  // split window
-            // start_col: 0,  // split window
-            // hidden: false, // e.g. tabs
-            // floating: false,
-            // anchor: String::from(""),
-            // anchor_grid_id: 0,
-            // zindex: 0,
-            // compindex: 0,
-            // border_removed: false,
-            // border: [false, false, false, false], // top, right, bottom, left
-            // anchor_pos: (-1, -1),
-            // monospace: false,
-            // pix: PixModel::default(),
             ..Grid::default()
         }
     }
