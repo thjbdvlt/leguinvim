@@ -47,6 +47,12 @@ call rpcnotify(1, 'Gui', 'MonoFloat', 1)
 
 ## limitations
 
+the rendering of non-monospace font by __leguinvim__ is a quick and dirty (and ultra-lazy) solution, and kind of a hacky one: __leguinvim__ don't try to wrap the lines by itself, it just lets neovim do it.
+some lines could thus be very long, and some other very short..?
+yes.
+but when writing prose, at least for some languages, and maybe surprisingely, it actually just works, because lines naturally tend to be a mix of narrow, wide and medium-width letters.
+except for extreme edge-cases (that __leguinvim__ will try to catch soon):
+
 ![](./screenshots/limitation-1-chars.png)
 
 ## source
