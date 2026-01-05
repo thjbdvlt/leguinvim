@@ -5,6 +5,18 @@ pub const GRID_WIDTH_RATIO: f64 = 0.9;
 pub type PixLine = Box<[f32]>;
 type PixMatrix = Box<[PixLine]>;
 
+macro_rules! unscale {
+    ($e: expr) => {
+        ($e / pango::SCALE) as f32
+    };
+}
+
+macro_rules! width {
+    ( $e: expr ) => {
+        unscale!($e.width())
+    };
+}
+
 #[derive(Default, Debug)]
 pub struct PixModel {
     pub matrix: PixMatrix,
@@ -35,22 +47,21 @@ impl PixModel {
         let pix_line = &mut self.matrix[row];
         pix_line.fill(space_width);
         let mut last_non_space: usize = sign_column;
+        // TODO optimize with filter/map/filter_map/flat_map?
         for col in sign_column..self.columns {
             for item in &line.item_line[col] {
                 let glyphs = item.glyphs();
                 if glyphs.is_some() {
                     for glyph_string in glyphs.iter() {
                         let n = glyph_string.num_glyphs();
-                        pix_line[col] = (glyph_string.width() / pango::SCALE) as f32;
+                        pix_line[col] = width!(glyph_string);
+                        last_non_space = col + n as usize;
                         if n > 1 {
                             /* when multiple glyphs are computed as one, we set the
                              * subsequent glyphs length to zero.
-                             * */
-                            for i in 1..n as usize {
-                                pix_line[col + i] = 0.0;
-                            }
+                             */
+                            pix_line[col + 1..last_non_space].fill(0.0);
                         }
-                        last_non_space = col + n as usize;
                     }
                 }
             }
@@ -66,8 +77,8 @@ impl PixModel {
     fn len_to_pos(&mut self, row: usize, last_non_space: usize) -> f32 {
         /* compute the horizontal position in pixel of each cell
          * we just reuse the same array here, because the previous one
-         * is not usefull anymore
-         * */
+         * is not usefull anymore.
+         */
         let pix_line = &mut self.matrix[row];
         let mut x: f32 = 0.0;
         for i in 0..last_non_space {
@@ -112,7 +123,7 @@ pub fn cursor_x(
     let mut col: usize = sign_column_len;
     let mut cursor_width: f32 = space_width;
     let mut word_width_until: f32 = 0.0;
-    // TODO macro ... ($x.width() / pango::scale) as f32
+    // TODO optimize
     'l: loop {
         for item in &line.item_line[col] {
             let glyphs = item.glyphs();
@@ -124,11 +135,12 @@ pub fn cursor_x(
                         if m > 0 {
                             let mut new_glyph = glyph_string.clone();
                             new_glyph.set_size(m as i32);
-                            x += (new_glyph.width() / pango::SCALE) as f32;
-                            word_width_until = (new_glyph.width() / pango::SCALE) as f32;
+                            let w = width!(new_glyph);
+                            x += w;
+                            word_width_until = w;
                             n_glyphs += m;
                             if let Some(c) = glyph_string.glyph_info().iter().nth(m) {
-                                cursor_width = (c.geometry().width() / pango::SCALE) as f32;
+                                cursor_width = width!(c.geometry());
                             }
                         }
                         break 'l;
@@ -138,7 +150,7 @@ pub fn cursor_x(
                          * but ensure that it's computed the same way as it is for
                          * line drawing
                          * */
-                        x += (glyph_string.width() / pango::SCALE) as f32;
+                        x += width!(glyph_string);
                     }
                 }
             }
@@ -147,7 +159,7 @@ pub fn cursor_x(
         if col >= cursor_col {
             if col < line.item_line.len() {
                 if let Some(width) = width_word_first_char(line, col) {
-                    cursor_width = (width / pango::SCALE) as f32;
+                    cursor_width = unscale!(width);
                 }
             }
             break 'l;
