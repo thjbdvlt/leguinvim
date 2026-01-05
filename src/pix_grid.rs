@@ -11,12 +11,6 @@ macro_rules! unscale {
     };
 }
 
-macro_rules! width {
-    ( $e: expr ) => {
-        unscale!($e.width())
-    };
-}
-
 #[derive(Default, Debug)]
 pub struct PixModel {
     pub matrix: PixMatrix,
@@ -47,14 +41,13 @@ impl PixModel {
         let pix_line = &mut self.matrix[row];
         pix_line.fill(space_width);
         let mut last_non_space: usize = sign_column;
-        // TODO optimize with filter/map/filter_map/flat_map?
-        for col in sign_column..self.columns {
+        for col in sign_column..pix_line.len() {
             for item in &line.item_line[col] {
                 let glyphs = item.glyphs();
                 if glyphs.is_some() {
                     for glyph_string in glyphs.iter() {
                         let n = glyph_string.num_glyphs();
-                        pix_line[col] = width!(glyph_string);
+                        pix_line[col] = unscale!(glyph_string.width());
                         last_non_space = col + n as usize;
                         if n > 1 {
                             /* when multiple glyphs are computed as one, we set the
@@ -123,7 +116,6 @@ pub fn cursor_x(
     let mut col: usize = sign_column_len;
     let mut cursor_width: f32 = space_width;
     let mut word_width_until: f32 = 0.0;
-    // TODO optimize. see `PixModel.update()`
     'l: loop {
         for item in &line.item_line[col] {
             let glyphs = item.glyphs();
@@ -135,12 +127,12 @@ pub fn cursor_x(
                         if m > 0 {
                             let mut new_glyph = glyph_string.clone();
                             new_glyph.set_size(m as i32);
-                            let w = width!(new_glyph);
+                            let w = unscale!(new_glyph.width());
                             x += w;
                             word_width_until = w;
                             n_glyphs += m;
                             if let Some(c) = glyph_string.glyph_info().iter().nth(m) {
-                                cursor_width = width!(c.geometry());
+                                cursor_width = unscale!(c.geometry().width());
                             }
                         }
                         break 'l;
@@ -150,7 +142,7 @@ pub fn cursor_x(
                          * but ensure that it's computed the same way as it is for
                          * line drawing
                          * */
-                        x += width!(glyph_string);
+                        x += unscale!(glyph_string.width());
                     }
                 }
             }

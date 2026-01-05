@@ -36,36 +36,26 @@ impl<'a> RenderStep<'a> {
         }
     }
 
-    // (until match_arm_wrapping stabilizes https://github.com/rust-lang/rustfmt/pull/4924 )
-    #[rustfmt::skip]
     fn to_snapshot(
         self,
         snapshot: &gtk::Snapshot,
         cell_metrics: &CellMetrics,
         line_x: &PixLine,
-        start_x: f32,
+        start_x: f64,
     ) {
-        // TODO optimize
         let (start_row, start_col) = self.pos;
         let x = line_x[start_col] as f64;
         let y = start_row as f64 * cell_metrics.line_height;
         let len = line_x[start_col + self.len] as f64 - x;
-        let x = start_x as f64 + x;
-        let pos = (x, y);
-        match self.kind {
-            RenderStepKind::Background =>
-                snapshot_bg(snapshot, cell_metrics, self.color, pos, len),
-            RenderStepKind::Strikethrough =>
-                snapshot_strikethrough(snapshot, cell_metrics, self.color, pos, len),
-            RenderStepKind::Underline =>
-                snapshot_underline(snapshot, cell_metrics, self.color, pos, len),
-            RenderStepKind::Underdouble =>
-                snapshot_underdouble(snapshot, cell_metrics, self.color, pos, len),
-            RenderStepKind::Underdot =>
-                snapshot_underdot(snapshot, cell_metrics, self.color, pos, len),
-            RenderStepKind::Underdash =>
-                snapshot_underdash(snapshot, cell_metrics, self.color, pos, len),
-        }
+        let f = match self.kind {
+            RenderStepKind::Background => snapshot_bg,
+            RenderStepKind::Strikethrough => snapshot_strikethrough,
+            RenderStepKind::Underline => snapshot_underline,
+            RenderStepKind::Underdouble => snapshot_underdouble,
+            RenderStepKind::Underdot => snapshot_underdot,
+            RenderStepKind::Underdash => snapshot_underdash,
+        };
+        f(snapshot, cell_metrics, self.color, start_x + x, y, len);
     }
 
     #[inline]
@@ -163,7 +153,7 @@ fn snapshot_grid(
     // optimizing contiguous series of similar drawing operations (source: Company)
     let model = ui_model.model();
 
-    let start_x = grid.rect.0;
+    let start_x = grid.rect.0 as f64;
     for (row, line) in model.iter().enumerate() {
         let mut pending_bg = None;
         let mut pending_strikethrough = None;
@@ -348,7 +338,7 @@ pub fn snapshot_cursor<T: CursorRedrawCb + 'static>(
     }
 
     if cell.hl.strikethrough {
-        snapshot_strikethrough(snapshot, cell_metrics, &fg, (x, y), clip_width);
+        snapshot_strikethrough(snapshot, cell_metrics, &fg, x, y, clip_width);
     }
 
     if cell.hl.underdashed {
@@ -356,7 +346,8 @@ pub fn snapshot_cursor<T: CursorRedrawCb + 'static>(
             snapshot,
             cell_metrics,
             &underline_color(cell, hl).fade(hl.bg(), fade_percentage),
-            (x, y),
+            x,
+            y,
             clip_width,
         );
     } else if cell.hl.underdotted {
@@ -364,7 +355,8 @@ pub fn snapshot_cursor<T: CursorRedrawCb + 'static>(
             snapshot,
             cell_metrics,
             &underdotted_color(cell, hl).fade(hl.bg(), fade_percentage),
-            (x, y),
+            x,
+            y,
             clip_width,
         );
     } else if cell.hl.underline {
@@ -372,7 +364,8 @@ pub fn snapshot_cursor<T: CursorRedrawCb + 'static>(
             snapshot,
             cell_metrics,
             &underline_color(cell, hl).fade(hl.bg(), fade_percentage),
-            (x, y),
+            x,
+            y,
             clip_width,
         );
     }
@@ -382,7 +375,8 @@ pub fn snapshot_cursor<T: CursorRedrawCb + 'static>(
             snapshot,
             cell_metrics,
             &underline_color(cell, hl).fade(hl.bg(), fade_percentage),
-            (x, y),
+            x,
+            y,
             clip_width,
         );
     }
@@ -392,7 +386,8 @@ fn snapshot_strikethrough(
     snapshot: &gtk::Snapshot,
     cell_metrics: &CellMetrics,
     color: &color::Color,
-    (x, y): (f64, f64),
+    x: f64,
+    y: f64,
     len: f64,
 ) {
     snapshot.append_color(
@@ -419,7 +414,8 @@ fn snapshot_underline(
     snapshot: &gtk::Snapshot,
     cell_metrics: &CellMetrics,
     color: &color::Color,
-    (x, y): (f64, f64),
+    x: f64,
+    y: f64,
     len: f64,
 ) {
     snapshot.append_color(&color.into(), &underline_rect(cell_metrics, (x, y), len))
@@ -429,7 +425,8 @@ fn snapshot_underdouble(
     snapshot: &gtk::Snapshot,
     cell_metrics: &CellMetrics,
     color: &color::Color,
-    pos: (f64, f64),
+    x: f64,
+    y: f64,
     len: f64,
 ) {
     /* We only need to handle the lower underline, the upper underline will be drawn by
@@ -437,7 +434,7 @@ fn snapshot_underdouble(
      */
     snapshot.append_color(
         &color.into(),
-        &underline_rect(cell_metrics, pos, len)
+        &underline_rect(cell_metrics, (x, y), len)
             .offset_r(0.0, (cell_metrics.underline_thickness * 2.0) as f32),
     )
 }
@@ -446,7 +443,8 @@ fn snapshot_underdot(
     snapshot: &gtk::Snapshot,
     cell_metrics: &CellMetrics,
     color: &color::Color,
-    (x, mut y): (f64, f64),
+    x: f64,
+    mut y: f64,
     len: f64,
 ) {
     let CellMetrics {
@@ -494,7 +492,8 @@ fn snapshot_underdash(
     snapshot: &gtk::Snapshot,
     cell_metrics: &CellMetrics,
     color: &color::Color,
-    (x, mut y): (f64, f64),
+    x: f64,
+    mut y: f64,
     len: f64,
 ) {
     let CellMetrics {
@@ -546,9 +545,9 @@ fn plan_and_snapshot_cell_bg<'a>(
     hl: &'a HighlightMap,
     cell: &'a ui_model::Cell,
     cell_metrics: &CellMetrics,
-    (row, col): (usize, usize),
+    pos: (usize, usize),
     line_x: &PixLine,
-    start_x: f32,
+    start_x: f64,
 ) {
     if let Some(cell_bg) = hl.cell_bg(cell).filter(|bg| *bg != hl.bg()) {
         if let Some(cur_pending_bg) = pending_bg {
@@ -557,11 +556,7 @@ fn plan_and_snapshot_cell_bg<'a>(
             }
             cur_pending_bg.to_snapshot(snapshot, cell_metrics, line_x, start_x);
         }
-        *pending_bg = Some(RenderStep::new(
-            RenderStepKind::Background,
-            cell_bg,
-            (row, col),
-        ));
+        *pending_bg = Some(RenderStep::new(RenderStepKind::Background, cell_bg, pos));
     } else if let Some(pending_bg) = pending_bg.take() {
         pending_bg.to_snapshot(snapshot, cell_metrics, line_x, start_x);
     }
@@ -637,7 +632,8 @@ fn snapshot_bg(
     snapshot: &gtk::Snapshot,
     cell_metrics: &CellMetrics,
     color: &color::Color,
-    (x, y): (f64, f64),
+    x: f64,
+    y: f64,
     len: f64,
 ) {
     snapshot.append_color(
