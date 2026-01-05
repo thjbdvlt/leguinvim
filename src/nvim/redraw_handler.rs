@@ -432,11 +432,11 @@ pub fn call(
         "mode_info_set" => call!(ui->mode_info_set(args: bool, ext)),
         "option_set" => call!(ui->option_set(args: str, val)),
 
-        "hl_group_set" => RedrawMode::Nothing, // TODO?
-        "set_title" => RedrawMode::Nothing,    // TODO?
-        "chdir" => RedrawMode::Nothing,        // TODO?
-        "set_icon" => RedrawMode::Nothing,     // We ignore this.
-        "update_menu" => RedrawMode::Nothing,  // We ignore this?
+        "hl_group_set" => RedrawMode::Nothing,
+        "set_title" => RedrawMode::Nothing,
+        "chdir" => RedrawMode::Nothing,
+        "set_icon" => RedrawMode::Nothing,
+        "update_menu" => RedrawMode::Nothing,
 
         "flush" => {
             debug!("Flush ({:?})", ui.pending_redraw);

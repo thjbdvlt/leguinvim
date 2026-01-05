@@ -292,7 +292,7 @@ impl Grid {
             self.model.put(
                 row,
                 2,
-                // TODO completion: put also other fields
+                // TODO completion: put also other fields?
                 // maybe it doesn't matter, since for prose writing
                 // we're not so much interested in "types" such as "method" or "const".
                 &item[0],

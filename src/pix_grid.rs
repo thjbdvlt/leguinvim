@@ -123,7 +123,7 @@ pub fn cursor_x(
     let mut col: usize = sign_column_len;
     let mut cursor_width: f32 = space_width;
     let mut word_width_until: f32 = 0.0;
-    // TODO optimize
+    // TODO optimize. see `PixModel.update()`
     'l: loop {
         for item in &line.item_line[col] {
             let glyphs = item.glyphs();
