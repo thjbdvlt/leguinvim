@@ -670,6 +670,14 @@ fn snapshot_cell(
     }
 }
 
+macro_rules! dirty {
+    ($line: expr, $skip: expr) => {
+        for cell in $line.line.iter_mut().skip($skip) {
+            cell.dirty = true;
+        }
+    };
+}
+
 pub fn shape_dirty(
     ctx: &context::Context,
     sub_ctxs: &mut SubCtx,
@@ -703,11 +711,12 @@ pub fn shape_dirty(
         loop {
             ratio -= 0.05;
             let size = sub_ctxs.max_smaller_size(ratio);
-            for cell in line.line.iter_mut().skip(sign_column) {
-                cell.dirty = true;
-            }
+            dirty!(line, sign_column);
             shape_dirty_line(line, hl, sub_ctxs.get_or_create(size));
-            if grid.pix.update(line, row, space_width, sign_column) <= width {
+            let x = grid.pix.update(line, row, space_width, sign_column);
+            if x <= width {
+                dirty!(line, sign_column);
+                line.dirty_line = true;
                 break;
             }
         }
