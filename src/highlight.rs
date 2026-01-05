@@ -144,8 +144,8 @@ impl HighlightMap {
         idx: u64,
         hl: &HashMap<String, Value>,
         info: &[HashMap<String, Value>],
-        sign_column: bool,
     ) -> HighlightUpdates {
+        let sign_column = is_line_nr_hi(info);
         let hl = Rc::new(Highlight::from_value_map(hl, sign_column));
         let mut updates = HighlightUpdates::default();
 
@@ -274,6 +274,7 @@ pub struct Highlight {
     pub reverse: bool,
 
     pub sign_column: bool, // proportional fonts
+    pub altfont: bool,
 }
 
 impl Highlight {
@@ -292,6 +293,7 @@ impl Highlight {
             reverse: false,
 
             sign_column: false, // proportional fonts
+            altfont: false,     // inline monospace fonts
         }
     }
 
@@ -328,6 +330,7 @@ impl Highlight {
                     model_attrs.underline = true;
                     model_attrs.underdouble = true;
                 }
+                "altfont" => model_attrs.altfont = true,
                 // TODO: Add support for real undercurls and don't just draw them as underdots (#42)
                 "underdotted" | "undercurl" => model_attrs.underdotted = true,
                 "underdashed" => model_attrs.underdashed = true,
@@ -348,7 +351,7 @@ impl Highlight {
     }
 }
 
-pub fn is_line_nr_hi(info: &Vec<HashMap<String, Value>>) -> bool {
+pub fn is_line_nr_hi(info: &[HashMap<String, Value>]) -> bool {
     // workaround for proportional fonts
     // see: Line.sign_column_len()
     for i in info.iter() {

@@ -81,14 +81,19 @@ impl Context {
         self.font_metrics = FontMetrix::new(pango_context, self.line_space);
     }
 
-    pub fn itemize(&self, line: &StyledLine) -> Vec<pango::Item> {
+    pub fn itemize(&self, line: &StyledLine, alt_ctx: &Self) -> Vec<pango::Item> {
         let attr_iter = line.attr_list.iterator();
 
-        ItemizeIterator::new(&line.line_str)
+        ItemizeIterator::new(&line.line_str, &line.cell_alt_font, line.last_alt_font)
             .flat_map(|res| {
-                let pango_context = &self.font_metrics.pango_context;
                 let offset = res.offset as i32;
                 let len = res.len as i32;
+
+                let pango_context = if line.cell_alt_font[offset as usize] {
+                    &alt_ctx.font_metrics.pango_context
+                } else {
+                    &self.font_metrics.pango_context
+                };
 
                 let first_res = pango::itemize(
                     pango_context,

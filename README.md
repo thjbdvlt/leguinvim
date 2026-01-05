@@ -8,6 +8,8 @@ if you want to try it anyway, check how to [install](#install) and [configure](#
 the name is a reference to sf writer [ursula k le guin](https://de.wikipedia.org/wiki/Ursula_K._Le_Guin): neovim makes possible to [edit text at the speed of thought](https://archive.org/details/practical-vim-edit-text-at-the-speed-of-thought), just as fast as le guin's characters with their telepathy abilities and their [ansibles](https://en.wikipedia.org/wiki/Ansible).
 the project could thus have been named *gtkleguinvim* (because it uses [gtk](https://www.gtk.org/)). but it's too long.
 
+![](./screenshots/mixed-fonts.png)
+
 ![](./screenshots/completion.png)
 
 ![](./screenshots/floating-monospace.png)

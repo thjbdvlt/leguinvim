@@ -23,7 +23,7 @@ use nvim_rs::Value;
 use crate::color::{COLOR_BLACK, COLOR_WHITE, Color};
 use crate::complete;
 use crate::grid::GridMap;
-use crate::highlight::{BackgroundState, HighlightMap, is_line_nr_hi};
+use crate::highlight::{BackgroundState, HighlightMap};
 use crate::misc::{decode_uri, escape_filename, split_at_comma};
 use crate::nvim::{
     self, CallErrorExt, ErrorReport, NeovimApiInfo, NeovimClient, NormalError, NvimHandler,
@@ -470,7 +470,7 @@ impl State {
         for (_, grid) in self.grids.grids.iter_mut() {
             let ctx = if grid.monospace { mono_ctx } else { font_ctx };
             grid.set_rect(ctx.cell_metrics());
-            render::shape_dirty(ctx, small_ctxs, grid, hl, true, grid.monospace);
+            render::shape_dirty(ctx, mono_ctx, small_ctxs, grid, hl, true, grid.monospace);
         }
 
         /* pmenu */
@@ -478,7 +478,7 @@ impl State {
             let pmenu = &mut self.grids.pmenu;
             pmenu.set_rect(font_ctx.cell_metrics());
             pmenu.rect.0 = pmenu_start_x;
-            render::shape_dirty(font_ctx, small_ctxs, pmenu, hl, false, false);
+            render::shape_dirty(font_ctx, mono_ctx, small_ctxs, pmenu, hl, false, false);
         };
     }
 
@@ -497,6 +497,7 @@ impl State {
         }
         let pmenu_anchor_id = pmenu.anchor_grid_id;
         if let Some(anchor) = self.grids.get(pmenu_anchor_id) {
+            // FIXME index out of bound
             Some(anchor.pix.matrix[row as usize][col as usize])
         } else {
             eprintln!("pmenu: missing PixGrid {:?}", pmenu_anchor_id);
@@ -1962,10 +1963,8 @@ impl State {
         info: Vec<HashMap<String, Value>>,
     ) -> RedrawMode {
         let mut render_state = self.render_state.borrow_mut();
-
-        let is_sign_column = is_line_nr_hi(&info);
-        let updated = render_state.hl.set(id, &rgb_attr, &info, is_sign_column);
-
+        // TODO add a global option for altfont defaulting to true
+        let updated = render_state.hl.set(id, &rgb_attr, &info);
         if updated.cursor {
             RedrawMode::Cursor
         } else {

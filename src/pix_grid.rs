@@ -74,7 +74,7 @@ impl PixModel {
          */
         let pix_line = &mut self.matrix[row];
         let mut x: f32 = 0.0;
-        for i in 0..last_non_space {
+        for i in 0..self.columns {
             let len = pix_line[i];
             pix_line[i] = x;
             x += len;

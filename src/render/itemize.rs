@@ -21,15 +21,27 @@ pub struct ItemizeIterator<'a> {
     grapheme_iter: GraphemeIndices<'a>,
     line: &'a str,
     prev_grapheme: Option<(usize, &'a str)>,
+
+    alt_font: &'a Box<[bool]>,
+    last_alt_font: usize,
 }
 
 impl<'a> ItemizeIterator<'a> {
-    pub fn new(line: &'a str) -> Self {
+    pub fn new(line: &'a str, alt_font: &'a Box<[bool]>, last_alt_font: usize) -> Self {
         ItemizeIterator {
             grapheme_iter: line.grapheme_indices(true),
             line,
             prev_grapheme: None,
+            alt_font,
+            last_alt_font,
         }
+    }
+
+    #[inline]
+    fn is_alt_font(&self, i: usize) -> bool {
+        // TODO optimize inline monospace
+        // i <= self.last_alt_font && self.alt_font[i] != self.alt_font[i - 1]
+        self.alt_font[i] != self.alt_font[i - 1]
     }
 }
 
@@ -48,11 +60,11 @@ impl Iterator for ItemizeIterator<'_> {
         let avoid_break = false;
 
         let end_index = loop {
-            let grapheme_indice = self
+            let grapheme_index = self
                 .prev_grapheme
                 .take()
                 .or_else(|| self.grapheme_iter.next());
-            if let Some((index, grapheme)) = grapheme_indice {
+            if let Some((index, grapheme)) = grapheme_index {
                 // Figure out if this grapheme is whitespace and/or ASCII in one iteration
                 let mut is_whitespace = true;
                 for c in grapheme.chars() {
@@ -64,12 +76,15 @@ impl Iterator for ItemizeIterator<'_> {
                     }
                 }
 
-                if start_index.is_none() && !is_whitespace {
-                    start_index = Some(index);
-                }
-                if start_index.is_some() && is_whitespace {
-                    self.prev_grapheme = grapheme_indice;
-                    break index;
+                if start_index.is_none() {
+                    if !is_whitespace {
+                        start_index = Some(index);
+                    }
+                } else {
+                    if is_whitespace || self.is_alt_font(index) {
+                        self.prev_grapheme = grapheme_index;
+                        break index;
+                    }
                 }
             } else {
                 break self.line.len();

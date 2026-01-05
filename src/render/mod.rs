@@ -676,6 +676,7 @@ macro_rules! dirty {
 
 pub fn shape_dirty(
     ctx: &context::Context,
+    alt_ctx: &context::Context,
     sub_ctxs: &mut SubCtx,
     grid: &mut Grid,
     hl: &HighlightMap,
@@ -690,7 +691,7 @@ pub fn shape_dirty(
         if !line.dirty_line {
             continue;
         }
-        shape_dirty_line(line, hl, ctx);
+        shape_dirty_line(line, hl, ctx, alt_ctx);
         line.dirty_line = false;
         if !update_pix {
             continue;
@@ -708,7 +709,7 @@ pub fn shape_dirty(
             ratio -= 0.05;
             let size = sub_ctxs.max_smaller_size(ratio);
             dirty!(line, sign_column);
-            shape_dirty_line(line, hl, sub_ctxs.get_or_create(size));
+            shape_dirty_line(line, hl, sub_ctxs.get_or_create(size), alt_ctx);
             let x = grid.pix.update(line, row, space_width, sign_column);
             if x <= width {
                 dirty!(line, sign_column);
@@ -719,9 +720,9 @@ pub fn shape_dirty(
     }
 }
 
-fn shape_dirty_line(line: &mut Line, hl: &HighlightMap, ctx: &Context) {
+fn shape_dirty_line(line: &mut Line, hl: &HighlightMap, ctx: &Context, alt_ctx: &Context) {
     let styled_line = ui_model::StyledLine::from(line, hl, ctx.font_features());
-    let items = ctx.itemize(&styled_line);
+    let items = ctx.itemize(&styled_line, alt_ctx);
     line.merge(&styled_line, &items);
     for (col, cell) in line.line.iter_mut().enumerate() {
         if cell.dirty {

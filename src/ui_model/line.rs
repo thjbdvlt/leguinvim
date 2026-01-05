@@ -294,6 +294,9 @@ pub struct StyledLine {
     pub line_str: String,
     cell_to_byte: Box<[usize]>,
     pub attr_list: pango::AttrList,
+
+    pub cell_alt_font: Box<[bool]>,
+    pub last_alt_font: usize,
 }
 
 impl StyledLine {
@@ -302,6 +305,7 @@ impl StyledLine {
 
         let mut line_str = String::with_capacity(average_capacity);
         let mut cell_to_byte = Vec::with_capacity(average_capacity);
+        let mut cell_alt_font = Vec::with_capacity(average_capacity);
         let attr_list = pango::AttrList::new();
         let mut byte_offset = 0;
         let mut style_attr = StyleAttr::new();
@@ -320,6 +324,7 @@ impl StyledLine {
 
             for _ in 0..len {
                 cell_to_byte.push(cell_idx);
+                cell_alt_font.push(cell.hl.altfont);
             }
 
             let next = style_attr.next(byte_offset, byte_offset + len, cell, hl);
@@ -334,10 +339,21 @@ impl StyledLine {
         style_attr.insert_into(&attr_list);
         font_features.insert_into(&attr_list);
 
+        // FIXME inline monospace optimization
+        let mut last_alt_font = 0;
+        for (index, alt_font) in cell_alt_font.iter().enumerate().rev() {
+            if *alt_font {
+                last_alt_font = index;
+                break;
+            }
+        }
+
         StyledLine {
             line_str,
             cell_to_byte: cell_to_byte.into_boxed_slice(),
             attr_list,
+            cell_alt_font: cell_alt_font.into_boxed_slice(),
+            last_alt_font,
         }
     }
 }
