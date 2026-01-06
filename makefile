@@ -5,7 +5,6 @@ src := $(shell find -name '*.rs')
 install_path := $(DEST_DIR)$(PREFIX)/bin/$(name)
 
 all: $(bin)
-	./$(bin) mixed-font.md
 
 $(bin): $(src) Cargo.toml
 	cargo build --release
