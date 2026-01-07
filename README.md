@@ -63,4 +63,4 @@ __leguinvim__ is forked from [neovim-gtk](https://github.com/lyude/neovim-gtk).
 
 ## todo
 
-this project aims to stay simple. no funky widgets nor smooth scrolling. just monospace fonts: that's still a lot to improves, lot of bugs to fix, of workaround to find!
+this project aims to stay simple. no funky widgets nor smooth scrolling. just non-monospace fonts: that's still a lot to improves, lot of bugs to fix, of workaround to find!

@@ -339,11 +339,10 @@ impl StyledLine {
         style_attr.insert_into(&attr_list);
         font_features.insert_into(&attr_list);
 
-        // FIXME inline monospace optimization
         let mut last_alt_font = 0;
         for (index, alt_font) in cell_alt_font.iter().enumerate().rev() {
             if *alt_font {
-                last_alt_font = index;
+                last_alt_font = index + 1;
                 break;
             }
         }

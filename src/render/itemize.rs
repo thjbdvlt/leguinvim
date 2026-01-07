@@ -39,9 +39,7 @@ impl<'a> ItemizeIterator<'a> {
 
     #[inline]
     fn is_alt_font(&self, i: usize) -> bool {
-        // TODO optimize inline monospace
-        // i <= self.last_alt_font && self.alt_font[i] != self.alt_font[i - 1]
-        self.alt_font[i] != self.alt_font[i - 1]
+        i <= self.last_alt_font && self.alt_font[i] != self.alt_font[i - 1]
     }
 }
 
