@@ -14,8 +14,8 @@ macro_rules! unscale {
 #[derive(Default, Debug)]
 pub struct PixModel {
     pub matrix: PixMatrix,
-    columns: usize,
-    rows: usize,
+    pub columns: usize,
+    pub rows: usize,
 }
 
 impl PixModel {
@@ -27,19 +27,33 @@ impl PixModel {
         }
     }
 
-    pub fn from_grid(model: &UiModel, space_width: f32, sign_column: usize) -> Self {
+    pub fn from_grid(
+        model: &UiModel,
+        char_width: f32,
+        space_width: f32,
+        sign_column: usize,
+    ) -> Self {
         let model = model;
         let (rows, columns) = (model.rows, model.columns);
         let mut pix_model = PixModel::new(columns, rows);
         for (row, line) in model.model().iter().enumerate() {
-            pix_model.update(line, row, space_width, sign_column);
+            pix_model.update(line, row, char_width, space_width, sign_column);
         }
         pix_model
     }
 
-    pub fn update(&mut self, line: &Line, row: usize, space_width: f32, sign_column: usize) -> f32 {
+    pub fn update(
+        &mut self,
+        line: &Line,
+        row: usize,
+        char_width: f32,
+        space_width: f32,
+        sign_column: usize,
+    ) -> f32 {
         let pix_line = &mut self.matrix[row];
         pix_line.fill(space_width);
+        pix_line[0..sign_column].fill(char_width);
+        let mut last_non_space: usize = sign_column;
         for col in sign_column..self.columns {
             for item in &line.item_line[col] {
                 let glyphs = item.glyphs();
@@ -47,25 +61,26 @@ impl PixModel {
                     for glyph_string in glyphs.iter() {
                         let n = glyph_string.num_glyphs();
                         pix_line[col] = unscale!(glyph_string.width());
+                        last_non_space = col + n as usize;
                         if n > 1 {
                             /* when multiple glyphs are computed as one, we set the
                              * subsequent glyphs length to zero.
                              */
-                            pix_line[col + 1..col + n as usize].fill(0.0);
+                            pix_line[col + 1..last_non_space].fill(0.0);
                         }
                     }
                 }
             }
         }
-        self.len_to_pos(row)
+        self.len_to_pos(row, last_non_space)
     }
 
     pub fn update_mono(&mut self, row: usize, space_width: f32) -> f32 {
         self.matrix[row].fill(space_width);
-        self.len_to_pos(row)
+        self.len_to_pos(row, self.columns)
     }
 
-    fn len_to_pos(&mut self, row: usize) -> f32 {
+    fn len_to_pos(&mut self, row: usize, last_non_space: usize) -> f32 {
         /* compute the horizontal position in pixel of each cell
          * we just reuse the same array here, because the previous one
          * is not usefull anymore.
@@ -78,7 +93,7 @@ impl PixModel {
             x += len;
         }
         pix_line[self.columns] = pix_line[self.columns - 1];
-        x
+        pix_line[last_non_space]
     }
 
     pub fn fit(&self, model: &UiModel) -> bool {
@@ -106,10 +121,11 @@ fn width_word_first_char(line: &Line, col: usize) -> Option<i32> {
 pub fn cursor_x(
     line: &Line,
     cursor_col: usize,
+    char_width: f32,
     space_width: f32,
     sign_column_len: usize,
 ) -> (f32, f32, f32) {
-    let mut x: f32 = sign_column_len as f32 * space_width;
+    let mut x: f32 = sign_column_len as f32 * char_width;
     let mut n_glyphs: usize = 0;
     let mut col: usize = sign_column_len;
     let mut cursor_width: f32 = space_width;

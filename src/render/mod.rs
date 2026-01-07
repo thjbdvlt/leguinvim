@@ -246,7 +246,12 @@ fn snapshot_pmenu(
         return;
     }
     let model = pmenu.model.model();
-    let pmenu_pix_grid = PixModel::from_grid(&pmenu.model, cell_metrics.char_width as f32, 0);
+    let pmenu_pix_grid = PixModel::from_grid(
+        &pmenu.model,
+        cell_metrics.char_width as f32,
+        cell_metrics.space_width as f32,
+        0,
+    );
     grid_bg(snapshot, pmenu, hl.bg());
     snapshot_text(snapshot, cell_metrics, model, pmenu, &pmenu_pix_grid, hl);
     grid_border(snapshot, pmenu, hl);
@@ -279,10 +284,16 @@ pub fn snapshot_cursor<T: CursorRedrawCb + 'static>(
         None => return,
     };
 
-    let space_size = cell_metrics.char_width as f32;
+    let char_width = cell_metrics.char_width as f32;
+    let space_width = cell_metrics.space_width as f32;
 
-    let (pixel_width, x, until_x) =
-        cursor_x(cursor_line, cursor_col, space_size, grid.sign_column_len());
+    let (pixel_width, x, until_x) = cursor_x(
+        cursor_line,
+        cursor_col,
+        char_width,
+        space_width,
+        grid.sign_column_len(),
+    );
     let x = x + grid.rect.0;
 
     let fade_percentage = cursor.alpha();
@@ -684,7 +695,8 @@ pub fn shape_dirty(
     monospace: bool,
 ) {
     let cell_metrics = ctx.cell_metrics();
-    let space_width = cell_metrics.char_width as f32;
+    let char_width = cell_metrics.char_width as f32;
+    let space_width = cell_metrics.space_width as f32;
     let sign_column = grid.sign_column_len();
     let width = (grid.rect.0 + grid.rect.2) as f32;
     for (row, line) in grid.model.model_mut().iter_mut().enumerate() {
@@ -700,7 +712,9 @@ pub fn shape_dirty(
             grid.pix.update_mono(row, space_width);
             continue;
         }
-        let x = grid.pix.update(line, row, space_width, sign_column);
+        let x = grid
+            .pix
+            .update(line, row, char_width, space_width, sign_column);
         if x <= width {
             continue;
         }
@@ -710,7 +724,9 @@ pub fn shape_dirty(
             let size = sub_ctxs.max_smaller_size(ratio);
             dirty!(line, sign_column);
             shape_dirty_line(line, hl, sub_ctxs.get_or_create(size), alt_ctx);
-            let x = grid.pix.update(line, row, space_width, sign_column);
+            let x = grid
+                .pix
+                .update(line, row, char_width, space_width, sign_column);
             if x <= width {
                 dirty!(line, sign_column);
                 line.dirty_line = true;

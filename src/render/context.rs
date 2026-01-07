@@ -1,6 +1,7 @@
 use fnv::FnvHashMap;
 use std::collections::HashSet;
 
+use gtk::Label;
 use pango::{self, FontDescription, prelude::*};
 
 use super::itemize::ItemizeIterator;
@@ -17,6 +18,15 @@ pub struct SubCtx {
     font_map: pango::FontMap,
     super_desc: FontDescription,
     ctxs: FnvHashMap<i32, Context>,
+}
+
+fn space_width(font_desc: &FontDescription) -> i32 {
+    let label = Label::new(None);
+    let layout = label.layout();
+    layout.set_markup(" ");
+    layout.set_font_description(Some(font_desc));
+    let (width, _) = layout.pixel_size();
+    width
 }
 
 impl SubCtx {
@@ -194,10 +204,10 @@ impl FontMetrix {
         let font_metrics =
             pango_context.metrics(None, Some(&pango::Language::from_string("en_US")));
         let font_desc = pango_context.font_description().unwrap();
-
+        let space_width: f64 = space_width(&font_desc) as f64;
         FontMetrix {
             pango_context,
-            cell_metrics: CellMetrics::new(&font_metrics, line_space),
+            cell_metrics: CellMetrics::new(&font_metrics, line_space, space_width),
             font_desc,
         }
     }
@@ -215,10 +225,11 @@ pub struct CellMetrics {
     pub strikethrough_thickness: f64,
     pub pango_ascent: i32,
     pub pango_descent: i32,
+    pub space_width: f64,
 }
 
 impl CellMetrics {
-    fn new(font_metrics: &pango::FontMetrics, line_space: i32) -> Self {
+    fn new(font_metrics: &pango::FontMetrics, line_space: i32, space_width: f64) -> Self {
         let ascent = (f64::from(font_metrics.ascent()) / f64::from(pango::SCALE)).ceil();
         let descent = (f64::from(font_metrics.descent()) / f64::from(pango::SCALE)).ceil();
 
@@ -250,22 +261,7 @@ impl CellMetrics {
             underline_thickness,
             strikethrough_position: ascent - strikethrough_position + strikethrough_thickness / 2.0,
             strikethrough_thickness,
-        }
-    }
-
-    #[cfg(test)]
-    pub fn new_hw(line_height: f64, char_width: f64) -> Self {
-        CellMetrics {
-            pango_ascent: 0,
-            pango_descent: 0,
-            ascent: 0.0,
-            descent: 0.0,
-            line_height,
-            char_width,
-            underline_position: 0.0,
-            underline_thickness: 0.0,
-            strikethrough_position: 0.0,
-            strikethrough_thickness: 0.0,
+            space_width,
         }
     }
 

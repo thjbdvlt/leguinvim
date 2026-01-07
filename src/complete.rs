@@ -85,6 +85,7 @@ impl Pmenu {
     }
 
     pub fn put(&self, pmenu_grid: &mut Grid, rows: usize, hl: &HighlightMap) {
+        // TODO: if there isn't enough place below, put the completion above
         let rows = rows - pmenu_grid.start_row as usize;
         if let Some((sel_idx, items)) = self.get_items(rows) {
             let columns = longest(items);

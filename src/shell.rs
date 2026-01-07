@@ -493,12 +493,17 @@ impl State {
         }
         if col >= 2 {
             /* don't know why it works, don't remember what it fixed */
+            // Something about the sign column, maybe?
             col -= 2;
         }
         let pmenu_anchor_id = pmenu.anchor_grid_id;
         if let Some(anchor) = self.grids.get(pmenu_anchor_id) {
-            // FIXME index out of bound
-            Some(anchor.pix.matrix[row as usize][col as usize])
+            // TODO completion put upon text if there's not much space below
+            if row as usize >= anchor.pix.rows || col as usize >= anchor.pix.columns {
+                None
+            } else {
+                Some(anchor.pix.matrix[row as usize][col as usize])
+            }
         } else {
             eprintln!("pmenu: missing PixGrid {:?}", pmenu_anchor_id);
             None
@@ -1918,6 +1923,7 @@ impl State {
         };
 
         let pmenu_grid = self.grids.pmenu_mut();
+        // TODO pmenu: if not enough space below, put the pmenu above
         pmenu_grid.set_float_pos(start_row + row + 1, 0, 300, grid, self.monospace_for_float);
         pmenu_grid.hidden = false;
         pmenu_grid.anchor_pos = (row, col);

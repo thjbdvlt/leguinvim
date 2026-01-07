@@ -262,6 +262,7 @@ pub fn cursor_rect(
     mode_info: Option<&mode::ModeInfo>,
     cell_metrics: &CellMetrics,
     line_y: f64,
+    // TODO double_width reimplement with proprotional fonts
     // double_width: bool,
     str_width: f64,
 ) -> (f64, f64, f64) {
@@ -395,75 +396,3 @@ impl<CB: CursorRedrawCb> Drop for Cursor<CB> {
 pub trait CursorRedrawCb {
     fn queue_redraw_cursor(&mut self);
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use std::collections::HashMap;
-//
-//     #[test]
-//     fn test_cursor_rect_horizontal() {
-//         let mut mode_data = HashMap::new();
-//         mode_data.insert("cursor_shape".to_owned(), From::from("horizontal"));
-//         mode_data.insert("cell_percentage".to_owned(), From::from(25));
-//
-//         let mode_info = mode::ModeInfo::new(&mode_data).ok();
-//         let char_width = 50.0;
-//         let line_height = 30.0;
-//         let line_y = 0.0;
-//
-//         let (y, width, height) = cursor_rect(
-//             mode_info.as_ref(),
-//             &CellMetrics::new_hw(line_height, char_width),
-//             line_y,
-//             false,
-//         );
-//         assert_eq!(line_y + line_height - line_height / 4.0, y);
-//         assert_eq!(char_width, width);
-//         assert_eq!(line_height / 4.0, height);
-//     }
-//
-//     #[test]
-//     fn test_cursor_rect_horizontal_doublewidth() {
-//         let mut mode_data = HashMap::new();
-//         mode_data.insert("cursor_shape".to_owned(), From::from("horizontal"));
-//         mode_data.insert("cell_percentage".to_owned(), From::from(25));
-//
-//         let mode_info = mode::ModeInfo::new(&mode_data).ok();
-//         let char_width = 50.0;
-//         let line_height = 30.0;
-//         let line_y = 0.0;
-//
-//         let (y, width, height) = cursor_rect(
-//             mode_info.as_ref(),
-//             &CellMetrics::new_hw(line_height, char_width),
-//             line_y,
-//             true,
-//         );
-//         assert_eq!(line_y + line_height - line_height / 4.0, y);
-//         assert_eq!(char_width * 2.0, width);
-//         assert_eq!(line_height / 4.0, height);
-//     }
-//
-//     #[test]
-//     fn test_cursor_rect_vertical() {
-//         let mut mode_data = HashMap::new();
-//         mode_data.insert("cursor_shape".to_owned(), From::from("vertical"));
-//         mode_data.insert("cell_percentage".to_owned(), From::from(25));
-//
-//         let mode_info = mode::ModeInfo::new(&mode_data).ok();
-//         let char_width = 50.0;
-//         let line_height = 30.0;
-//         let line_y = 0.0;
-//
-//         let (y, width, height) = cursor_rect(
-//             mode_info.as_ref(),
-//             &CellMetrics::new_hw(line_height, char_width),
-//             line_y,
-//             false,
-//         );
-//         assert_eq!(line_y, y);
-//         assert_eq!(char_width / 4.0, width);
-//         assert_eq!(line_height, height);
-//     }
-// }
