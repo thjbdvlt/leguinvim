@@ -284,15 +284,13 @@ pub fn snapshot_cursor<T: CursorRedrawCb + 'static>(
         None => return,
     };
 
-    let char_width = cell_metrics.char_width as f32;
     let space_width = cell_metrics.space_width as f32;
 
     let (pixel_width, x, until_x) = cursor_x(
         cursor_line,
+        &grid.pix.matrix[cursor_row],
         cursor_col,
-        char_width,
         space_width,
-        grid.sign_column_len(),
     );
     let x = x + grid.rect.0;
 

@@ -59,7 +59,7 @@ impl PixModel {
                 let glyphs = item.glyphs();
                 if glyphs.is_some() {
                     for glyph_string in glyphs.iter() {
-                        let n = glyph_string.num_glyphs();
+                        let n = item.item.num_chars() as usize;
                         pix_line[col] = unscale!(glyph_string.width());
                         last_non_space = col + n as usize;
                         if n > 1 {
@@ -118,62 +118,63 @@ fn width_word_first_char(line: &Line, col: usize) -> Option<i32> {
     )
 }
 
+fn line_str(line: &Line, start_index: usize, end_index: usize) -> String {
+    let mut s = String::new();
+    for i in start_index..end_index {
+        s.push_str(&line.line[i].ch);
+    }
+    s
+}
+
+fn find_word_start_index(pix_line: &PixLine, cursor_col: usize) -> usize {
+    let mut i = cursor_col + 1;
+    while i > 0 && pix_line[i] == pix_line[i - 1] {
+        i -= 1;
+    }
+    if i > 0 { i - 1 } else { i }
+}
+
 pub fn cursor_x(
     line: &Line,
+    pix_line: &PixLine,
     cursor_col: usize,
-    char_width: f32,
     space_width: f32,
-    sign_column_len: usize,
 ) -> (f32, f32, f32) {
-    let mut x: f32 = sign_column_len as f32 * char_width;
-    let mut n_glyphs: usize = 0;
-    let mut col: usize = sign_column_len;
     let mut cursor_width: f32 = space_width;
-    let mut word_width_until: f32 = 0.0;
-    'l: loop {
-        for item in &line.item_line[col] {
-            let glyphs = item.glyphs();
-            if glyphs.is_some() {
-                for glyph_string in glyphs.iter() {
-                    let n = glyph_string.num_glyphs() as usize;
-                    if col + n > cursor_col {
-                        let m = cursor_col - col;
-                        if m > 0 {
-                            let mut new_glyph = glyph_string.clone();
-                            new_glyph.set_size(m as i32);
-                            let w = unscale!(new_glyph.width());
-                            x += w;
-                            word_width_until = w;
-                            n_glyphs += m;
-                            if let Some(c) = glyph_string.glyph_info().iter().nth(m) {
-                                cursor_width = unscale!(c.geometry().width());
-                            }
-                        }
-                        break 'l;
-                    } else {
-                        n_glyphs += n;
-                        /* calling "/ pango::SCALE" each time is suboptimal
-                         * but ensure that it's computed the same way as it is for
-                         * line drawing
-                         * */
-                        x += unscale!(glyph_string.width());
-                    }
-                }
-            }
-        }
-        col += 1;
-        if col >= cursor_col {
-            if col < line.item_line.len() {
-                if let Some(width) = width_word_first_char(line, col) {
-                    cursor_width = unscale!(width);
-                }
-            }
-            break 'l;
-        }
+    let mut prefix: f32 = 0.0;
+
+    let col = find_word_start_index(pix_line, cursor_col);
+
+    let item_line = &line.item_line[col];
+    if item_line.len() == 0 {
+        return (space_width, pix_line[col], 0.0);
     }
-    (
-        cursor_width,
-        x + ((cursor_col - n_glyphs - sign_column_len) as f32 * space_width),
-        word_width_until,
-    )
+
+    let item = &item_line[0]; // Never more than 1
+    let n = item.item.num_chars() as usize;
+    let glyphs = item.glyphs();
+    let mut x = pix_line[col];
+    if n == 0 || glyphs.is_none() {
+        eprintln!("cursor on no glyph"); // this shouldn't happen
+        return (space_width, x, 0.0);
+    }
+
+    let Some(glyph_string) = glyphs.iter().nth(0) else {
+        return (space_width, x, 0.0);
+    };
+
+    if col + n > cursor_col {
+        let m = cursor_col - col;
+        let text = line_str(line, col, col + n);
+        let analysis = item.analysis();
+        let (start, end) = (
+            unscale!(glyph_string.index_to_x(&text, analysis, m as i32, false)),
+            unscale!(glyph_string.index_to_x(&text, analysis, m as i32, true)),
+        );
+        cursor_width = end - start;
+        x += start;
+        prefix = start;
+    }
+
+    (cursor_width, x, prefix)
 }
