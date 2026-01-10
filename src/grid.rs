@@ -287,11 +287,24 @@ impl Grid {
         }
     }
 
-    pub fn complete_items(&mut self, items: &[[String; 4]], selected: i64, hl: &HighlightMap) {
-        for (row, item) in items.iter().enumerate() {
+    pub fn complete_items(
+        &mut self,
+        items: &[[String; 4]],
+        selected: i64,
+        reverse: bool,
+        n_items: usize,
+        hl: &HighlightMap,
+    ) {
+        let (mut row, step, selected) = if reverse {
+            let last_item = n_items as i64 - 1;
+            (last_item, -1, last_item - selected)
+        } else {
+            (0, 1, selected)
+        };
+        for item in items.iter() {
             self.model.put(
-                row,
-                2,
+                row as usize,
+                2, // padding
                 // TODO completion: put also other fields?
                 // maybe it doesn't matter, since for prose writing
                 // we're not so much interested in "types" such as "method" or "const".
@@ -304,6 +317,7 @@ impl Grid {
                     hl.pmenu.clone()
                 },
             );
+            row += step;
         }
     }
 

@@ -24,6 +24,7 @@ pub struct Pmenu {
     pub items: Vec<[String; 4]>,
     pub sel: i64,
     pub anchor_grid_id: u64,
+    pub reverse: bool,
 }
 
 fn longest(items: &[[String; 4]]) -> usize {
@@ -43,6 +44,7 @@ impl Pmenu {
             items: Vec::new(),
             sel: -1,
             anchor_grid_id: 0,
+            reverse: false,
         }
     }
 
@@ -85,12 +87,15 @@ impl Pmenu {
     }
 
     pub fn put(&self, pmenu_grid: &mut Grid, rows: usize, hl: &HighlightMap) {
-        // TODO: if there isn't enough place below, put the completion above
-        let rows = rows - pmenu_grid.start_row as usize;
+        let rows = if !self.reverse {
+            rows
+        } else {
+            pmenu_grid.anchor_pos.0 as usize
+        };
         if let Some((sel_idx, items)) = self.get_items(rows) {
             let columns = longest(items);
             pmenu_grid.resize(columns, items.len());
-            pmenu_grid.complete_items(items, sel_idx, hl);
+            pmenu_grid.complete_items(items, sel_idx, self.reverse, items.len(), hl);
         }
     }
 

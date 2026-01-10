@@ -1909,27 +1909,42 @@ impl State {
             eprintln!("pmenu: negative grid {grid:?}");
             return RedrawMode::Nothing;
         }
-
-        // now we can safely convert to u64
         let grid = grid as u64;
-
-        // parse the items and store in Pmenu struct
         self.pmenu.parse_items(items);
         self.pmenu.anchor_grid_id = grid;
-
-        let Some((start_row, _, _, _)) = self.grids.get_grid_pos(grid) else {
-            eprintln!("pmenu: anchor grid not found");
-            return RedrawMode::Nothing;
-        };
-
         let pmenu_grid = self.grids.pmenu_mut();
-        // TODO pmenu: if not enough space below, put the pmenu above
-        pmenu_grid.set_float_pos(start_row + row + 1, 0, 300, grid, self.monospace_for_float);
         pmenu_grid.hidden = false;
         pmenu_grid.anchor_pos = (row, col);
-
+        self.pmenu_init_pos();
         self.popupmenu_select(selected);
         RedrawMode::All
+    }
+
+    pub fn pmenu_init_pos(&mut self) {
+        let anchor_grid = &self.grids.get(self.pmenu.anchor_grid_id).unwrap();
+        let start_row = anchor_grid.start_row;
+        let row = self.grids.pmenu.anchor_pos.0;
+        let rows = anchor_grid.rows();
+        let grid_id = self.pmenu.anchor_grid_id;
+        let pmenu_grid = self.grids.pmenu_mut();
+        self.pmenu.reverse = row as usize * 2 >= rows;
+        pmenu_grid.set_float_pos(
+            start_row + row + 1,
+            0,
+            300,
+            grid_id,
+            self.monospace_for_float,
+        );
+    }
+
+    pub fn pmenu_update_pos(&mut self) {
+        if self.pmenu.reverse {
+            let pmenu_grid = self.grids.pmenu_mut();
+            let start_row = pmenu_grid.anchor_pos.0 as usize;
+            let rows = std::cmp::min(start_row, self.pmenu.len());
+            let start_row = (start_row - rows) as usize;
+            pmenu_grid.start_row = start_row as i64;
+        }
     }
 
     pub fn pmenu_put(&mut self) {
@@ -1938,15 +1953,14 @@ impl State {
             return;
         };
         let start_row = anchor_grid.start_row;
-        let max_rows = anchor_grid.rows() as i64;
-        if max_rows <= start_row {
-            // FIXME: resize or set_pos ! This happens quite often.
-            eprintln!("pmenu: start_row out of screen");
-            return;
+        let rows = anchor_grid.rows() as i64;
+        if rows > start_row {
+            self.pmenu.put(
+                self.grids.pmenu_mut(),
+                (rows - start_row) as usize,
+                &self.render_state.borrow().hl,
+            );
         }
-        let rows = (max_rows - start_row) as usize;
-        self.pmenu
-            .put(self.grids.pmenu_mut(), rows, &self.render_state.borrow().hl);
     }
 
     pub fn popupmenu_hide(&mut self) -> RedrawMode {
@@ -1957,6 +1971,7 @@ impl State {
     pub fn popupmenu_select(&mut self, selected: i64) -> RedrawMode {
         self.pmenu.sel = selected;
         self.grids.pmenu.hidden = false;
+        self.pmenu_update_pos();
         self.pmenu_put();
         RedrawMode::All
     }
