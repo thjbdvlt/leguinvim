@@ -709,7 +709,7 @@ pub fn shape_dirty(
             continue;
         }
         if monospace {
-            grid.pix.update_mono(row, space_width);
+            grid.pix.update_mono(row, char_width);
             continue;
         }
         let x = grid
