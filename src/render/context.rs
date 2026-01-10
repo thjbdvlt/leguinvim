@@ -43,7 +43,7 @@ impl SubCtx {
     }
 
     pub fn max_smaller_size(&self, ratio: f32) -> i32 {
-        ((self.super_desc.size() as f32 * ratio) * 0.8).trunc() as i32
+        (self.super_desc.size() as f32 * ratio).trunc() as i32
     }
 
     fn add_smaller_font(&mut self, new_size: i32) {
