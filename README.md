@@ -10,7 +10,7 @@ the project could thus have been named *gtkleguinvim* (because it uses [gtk](htt
 
 ![](./screenshots/u-k-le-guin-theory.png)
 
-![](./screenshots/interview-becker.png)
+![](./screenshots/becker.png)
 
 ![](./screenshots/floating-monospace.png)
 
