@@ -441,14 +441,14 @@ impl NvimSession {
             .timeout(self.command(&format!("cal chanclose({channel})")))
             .await;
         if let Err(ref e) = res {
-            if let SessionError::CallError(ref e) = *e {
-                if let CallError::DecodeError(ref e, _) = **e {
-                    if let DecodeError::ReaderError(_) = **e {
-                        // It's expected that we'll fail to read the response to this
-                        return;
-                    }
-                }
+            if let SessionError::CallError(ref e) = *e
+                && let CallError::DecodeError(ref e, _) = **e
+                && let DecodeError::ReaderError(_) = **e
+            {
+                // It's expected that we'll fail to read the response to this
+                return;
             }
+
             res.report_err();
         }
     }

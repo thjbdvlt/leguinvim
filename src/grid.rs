@@ -311,7 +311,7 @@ impl Grid {
                 &item[0],
                 false,
                 1,
-                if row as i64 == selected {
+                if row == selected {
                     hl.pmenu_sel.clone()
                 } else {
                     hl.pmenu.clone()

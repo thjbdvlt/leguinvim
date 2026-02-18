@@ -492,13 +492,11 @@ impl State {
             return None;
         }
         if col >= 2 {
-            /* don't know why it works, don't remember what it fixed */
-            // Something about the sign column, maybe?
+            /* don't know why it works, don't remember what it fixed. something relative to the sign column, maybe..? */
             col -= 2;
         }
         let pmenu_anchor_id = pmenu.anchor_grid_id;
         if let Some(anchor) = self.grids.get(pmenu_anchor_id) {
-            // TODO completion put upon text if there's not much space below
             if row as usize >= anchor.pix.rows || col as usize >= anchor.pix.columns {
                 None
             } else {
@@ -542,7 +540,7 @@ impl State {
     fn set_im_location(&self) {
         let render_state = self.render_state.borrow();
         let cm = render_state.font_ctx.cell_metrics();
-        for (row, col) in self.grids.grids.iter().map(|(_, g)| g.get_cursor()) {
+        for (row, col) in self.grids.grids.values().map(|g| g.get_cursor()) {
             let (x, y, width, height) = ModelRect::point(col, row).to_area(cm);
             self.im_context
                 .set_cursor_location(&gdk::Rectangle::new(x, y, width, height));
@@ -1624,10 +1622,10 @@ fn init_nvim_async(
     // add callback on session end
     let cb_state_arc = state_arc.clone();
     session.spawn(io_future.map(|r| {
-        if let Err(e) = r {
-            if !e.is_reader_error() {
-                error!("{e}");
-            }
+        if let Err(e) = r
+            && !e.is_reader_error()
+        {
+            error!("{e}");
         }
 
         glib::idle_add_once(move || {
@@ -1651,14 +1649,13 @@ fn init_nvim_async(
             Err(ref e) => show_nvim_init_error(e, state_arc.clone(), comps.clone()),
         }
 
-        if initialized {
-            if let Err(ref e) = session
+        if initialized
+            && let Err(ref e) = session
                 .timeout(session.command("runtime! ginit.vim"))
                 .await
                 .map_err(NvimInitError::new_post_init)
-            {
-                show_nvim_init_error(e, state_arc, comps);
-            }
+        {
+            show_nvim_init_error(e, state_arc, comps);
         }
     });
 }
@@ -1840,9 +1837,7 @@ impl State {
         /* i don't really know why it works like this, but it works. */
         if (row as i64) >= grid.start_row {
             grid.clear_content();
-            if rows > 0 {
-                rows -= 1;
-            }
+            rows = rows.saturating_sub(1);
         } else {
             rows += 1;
         }
@@ -2066,27 +2061,26 @@ impl State {
     }
 
     fn set_font_from_value(&mut self, val: Value) -> RedrawMode {
-        if let Value::String(val) = val {
-            if let Some(val) = val.into_str() {
-                if !val.is_empty() {
-                    let exists_fonts = self.render_state.borrow().font_ctx.font_families();
-                    let fonts = split_at_comma(&val);
-                    for font in &fonts {
-                        let desc = FontDescription::from_string(font);
-                        if desc.size() > 0
-                            && exists_fonts.contains(&desc.family().unwrap_or_else(|| "".into()))
-                        {
-                            self.set_font_rpc(font, false);
-                            return RedrawMode::All;
-                        }
-                    }
-
-                    // font does not exists? set first one
-                    if !fonts.is_empty() {
-                        self.set_font_rpc(&fonts[0], false);
-                        return RedrawMode::All;
-                    }
+        if let Value::String(val) = val
+            && let Some(val) = val.into_str()
+            && !val.is_empty()
+        {
+            let exists_fonts = self.render_state.borrow().font_ctx.font_families();
+            let fonts = split_at_comma(&val);
+            for font in &fonts {
+                let desc = FontDescription::from_string(font);
+                if desc.size() > 0
+                    && exists_fonts.contains(&desc.family().unwrap_or_else(|| "".into()))
+                {
+                    self.set_font_rpc(font, false);
+                    return RedrawMode::All;
                 }
+            }
+
+            // font does not exists? set first one
+            if !fonts.is_empty() {
+                self.set_font_rpc(&fonts[0], false);
+                return RedrawMode::All;
             }
         }
 

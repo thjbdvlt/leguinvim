@@ -22,12 +22,12 @@ pub struct ItemizeIterator<'a> {
     line: &'a str,
     prev_grapheme: Option<(usize, &'a str)>,
 
-    alt_font: &'a Box<[bool]>,
+    alt_font: &'a [bool],
     last_alt_font: usize,
 }
 
 impl<'a> ItemizeIterator<'a> {
-    pub fn new(line: &'a str, alt_font: &'a Box<[bool]>, last_alt_font: usize) -> Self {
+    pub fn new(line: &'a str, alt_font: &'a [bool], last_alt_font: usize) -> Self {
         ItemizeIterator {
             grapheme_iter: line.grapheme_indices(true),
             line,
@@ -43,12 +43,10 @@ impl<'a> ItemizeIterator<'a> {
     }
 }
 
-/**
- * Iterates through a line of text while itemizing it into the largest possible clusters of
- * non-whitespace characters that can be drawn at once without risking column misalignment from
- * ambiguous width characters. This means for ASCII where the size of non-whitespace is essentially
- * guaranteed to be consistent, items will ideally be per-word to speed up rendering. For Unicode,
- * items will be per-grapheme to ensure correct monospaced display.
+/*
+ * Iterates through a line of text while itemizing it into the largest possible clusters of non-whitespace characters that can be drawn at once without risking column misalignment from ambiguous width characters.
+ * This means for ASCII where the size of non-whitespace is essentially guaranteed to be consistent, items will ideally be per-word to speed up rendering.
+ * For Unicode, items will be per-grapheme to ensure correct monospaced display.
  */
 impl Iterator for ItemizeIterator<'_> {
     type Item = ItemizeResult;
@@ -78,11 +76,9 @@ impl Iterator for ItemizeIterator<'_> {
                     if !is_whitespace {
                         start_index = Some(index);
                     }
-                } else {
-                    if is_whitespace || self.is_alt_font(index) {
-                        self.prev_grapheme = grapheme_index;
-                        break index;
-                    }
+                } else if is_whitespace || self.is_alt_font(index) {
+                    self.prev_grapheme = grapheme_index;
+                    break index;
                 }
             } else {
                 break self.line.len();

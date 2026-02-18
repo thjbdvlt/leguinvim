@@ -355,12 +355,11 @@ pub fn is_line_nr_hi(info: &[HashMap<String, Value>]) -> bool {
     // workaround for proportional fonts
     // see: Line.sign_column_len()
     for i in info.iter() {
-        if let Some(hi_name) = i.get("hi_name") {
-            if let Some(hi_name_str) = hi_name.as_str() {
-                if hi_name_str == "LineNr" || hi_name_str == "CursorLineNr" {
-                    return true;
-                }
-            }
+        if i.get("hi_name")
+            .and_then(|i| i.as_str())
+            .is_some_and(|i| i == "LineNr" || i == "CursorLineNr")
+        {
+            return true;
         }
     }
     false

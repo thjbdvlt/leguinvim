@@ -50,7 +50,7 @@ impl UiModel {
 
     #[inline]
     pub fn get_line(&self, row: usize) -> Option<&Line> {
-        self.model.iter().nth(row)
+        self.model.get(row)
     }
 
     #[inline]

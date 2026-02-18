@@ -33,7 +33,6 @@ impl PixModel {
         space_width: f32,
         sign_column: usize,
     ) -> Self {
-        let model = model;
         let (rows, columns) = (model.rows, model.columns);
         let mut pix_model = PixModel::new(columns, rows);
         for (row, line) in model.model().iter().enumerate() {
@@ -61,7 +60,7 @@ impl PixModel {
                     for glyph_string in glyphs.iter() {
                         let n = item.item.num_chars() as usize;
                         pix_line[col] = unscale!(glyph_string.width());
-                        last_non_space = col + n as usize;
+                        last_non_space = col + n;
                         if n > 1 {
                             /* when multiple glyphs are computed as one, we set the
                              * subsequent glyphs length to zero.
@@ -101,23 +100,6 @@ impl PixModel {
     }
 }
 
-fn width_word_first_char(line: &Line, col: usize) -> Option<i32> {
-    let glyphs = line.item_line[col].iter().nth(0)?.glyphs();
-    if !glyphs.is_some() {
-        return None;
-    }
-    Some(
-        glyphs
-            .iter()
-            .nth(0)?
-            .glyph_info()
-            .iter()
-            .nth(0)?
-            .geometry()
-            .width(),
-    )
-}
-
 fn line_str(line: &Line, start_index: usize, end_index: usize) -> String {
     let mut s = String::new();
     for i in start_index..end_index {
@@ -146,7 +128,7 @@ pub fn cursor_x(
     let col = find_word_start_index(pix_line, cursor_col);
 
     let item_line = &line.item_line[col];
-    if item_line.len() == 0 {
+    if item_line.is_empty() {
         return (space_width, pix_line[col], 0.0);
     }
 
@@ -159,7 +141,7 @@ pub fn cursor_x(
         return (space_width, x, 0.0);
     }
 
-    let Some(glyph_string) = glyphs.iter().nth(0) else {
+    let Some(glyph_string) = glyphs.iter().next() else {
         return (space_width, x, 0.0);
     };
 

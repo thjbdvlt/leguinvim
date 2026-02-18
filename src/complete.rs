@@ -10,7 +10,7 @@ macro_rules! next_str {
 }
 
 fn into_completion_item(item: &Value) -> Option<[String; 4]> {
-    let mut iter = item.as_array()?.into_iter();
+    let mut iter = item.as_array()?.iter();
     let arr: [String; 4] = [
         next_str!(iter), // word
         next_str!(iter), // kind
@@ -53,7 +53,7 @@ impl Pmenu {
             self.items = Vec::new();
             return;
         };
-        self.items = items.into_iter()
+        self.items = items.iter()
             // we don't filter items, else "selected" index could be wrong.
             .map(|i| into_completion_item(i).unwrap_or([
                 String::from(""),

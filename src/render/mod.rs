@@ -93,7 +93,7 @@ pub fn snapshot_all_grids(
         } else {
             cell_metrics
         };
-        snapshot_grid(&mut snapshot, cm, &grid, hl);
+        snapshot_grid(&mut snapshot, cm, grid, hl);
     }
     snapshot_pmenu(&mut snapshot, gridmap, cell_metrics, hl);
     snapshot.to_node()
@@ -175,7 +175,7 @@ fn snapshot_grid(
             // us. Additionally, all optimizations are limited to each row. We do not for instance,
             // combine the background nodes of multiple identical adjacent rows.
             plan_and_snapshot_cell_bg(
-                &snapshot,
+                snapshot,
                 &mut pending_bg,
                 hl,
                 cell,
@@ -197,7 +197,7 @@ fn snapshot_grid(
 
         // Since background nodes come first, we can add them to the snapshot immediately
         if let Some(pending_bg) = pending_bg {
-            pending_bg.to_snapshot(&snapshot, cell_metrics, &grid.pix.matrix[row], start_x);
+            pending_bg.to_snapshot(snapshot, cell_metrics, &grid.pix.matrix[row], start_x);
         }
     }
 
@@ -205,7 +205,7 @@ fn snapshot_grid(
 
     for step in text_fmt_steps.into_iter() {
         let row = step.pos.0 - grid.start_row as usize;
-        step.to_snapshot(&snapshot, cell_metrics, &grid.pix.matrix[row], start_x);
+        step.to_snapshot(snapshot, cell_metrics, &grid.pix.matrix[row], start_x);
     }
 }
 
@@ -223,11 +223,11 @@ fn snapshot_text(
         let pix_row = &pix.matrix[row];
         for (col, cell) in line.line.iter().enumerate() {
             snapshot_cell(
-                &snapshot,
+                snapshot,
                 &line.item_line[col],
                 hl,
                 cell,
-                start_x + pix_row[col] as f32,
+                start_x + pix_row[col],
                 y,
             );
         }
@@ -331,15 +331,15 @@ pub fn snapshot_cursor<T: CursorRedrawCb + 'static>(
 
     if cell_start_col >= 0 {
         snapshot.push_clip(&clip_rect);
-        let cell_start_line_x = x as f64 - until_x as f64;
+        let cell_start_line_x = x - until_x as f64;
         for item in &*cursor_line.item_line[cell_start_col as usize] {
-            if item.glyphs().is_some() {
-                if let Some(ref render_node) = item.new_render_node(
+            if item.glyphs().is_some()
+                && let Some(ref render_node) = item.new_render_node(
                     &fg,
                     (cell_start_line_x as f32, (y + cell_metrics.ascent) as f32),
-                ) {
-                    snapshot.append_node(render_node);
-                }
+                )
+            {
+                snapshot.append_node(render_node);
             }
         }
 
@@ -626,11 +626,12 @@ fn plan_underline_strikethrough<'a>(
     }
 
     if cell.hl.underdouble {
-        if let Some(idx) = *pending_underdouble {
-            if pending_fmt_ops[idx].extend(RenderStepKind::Underdouble, color) {
-                return;
-            }
+        if let Some(idx) = *pending_underdouble
+            && pending_fmt_ops[idx].extend(RenderStepKind::Underdouble, color)
+        {
+            return;
         }
+
         *pending_underdouble = Some(pending_fmt_ops.len());
         pending_fmt_ops.push(RenderStep::new(RenderStepKind::Underdouble, color, pos));
     }
@@ -667,10 +668,10 @@ fn snapshot_cell(
 ) {
     for item in items {
         let fg = hl.actual_cell_fg(cell);
-        if item.glyphs().is_some() {
-            if let Some(render_node) = item.render_node(fg, (x, y)) {
-                snapshot.append_node(render_node);
-            }
+        if item.glyphs().is_some()
+            && let Some(render_node) = item.render_node(fg, (x, y))
+        {
+            snapshot.append_node(render_node);
         }
     }
 }
@@ -696,7 +697,7 @@ pub fn shape_dirty(
     let char_width = cell_metrics.char_width as f32;
     let space_width = cell_metrics.space_width as f32;
     let sign_column = grid.sign_column_len();
-    let width = (grid.rect.0 + grid.rect.2) as f32;
+    let width = grid.rect.0 + grid.rect.2;
     for (row, line) in grid.model.model_mut().iter_mut().enumerate() {
         if !line.dirty_line {
             continue;

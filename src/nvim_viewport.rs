@@ -175,19 +175,18 @@ impl WidgetImpl for NvimViewportObject {
                 }
             }
 
-            if let Some(cursor) = state.cursor() {
-                if let Some(grid) = state.grids.get(state.cursor_grid) {
-                    // let pix_grid = &state.pix_grids.get(&state.cursor_grid).unwrap();
-                    snapshot_cursor(
-                        snapshot_in,
-                        cursor,
-                        font_ctx,
-                        mono_ctx,
-                        grid,
-                        hl,
-                        transparency,
-                    );
-                }
+            if let Some(cursor) = state.cursor()
+                && let Some(grid) = state.grids.get(state.cursor_grid)
+            {
+                snapshot_cursor(
+                    snapshot_in,
+                    cursor,
+                    font_ctx,
+                    mono_ctx,
+                    grid,
+                    hl,
+                    transparency,
+                );
             }
         } else {
             self.snapshot_initializing(snapshot_in, &render_state);
