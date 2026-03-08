@@ -71,3 +71,8 @@ features = ["v4_4"]
 package = "gsk4"
 version = "0.10.0"
 features = ["v4_4"]
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
