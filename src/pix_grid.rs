@@ -11,14 +11,19 @@ macro_rules! unscale {
     };
 }
 
+/// Store informations about positions and length of characters in pixels
 #[derive(Default, Debug)]
 pub struct PixModel {
+    /// pixel 2d array
     pub matrix: PixMatrix,
+    /// number of columns in neovim grid
     pub columns: usize,
+    /// number of rows in neovim grid
     pub rows: usize,
 }
 
 impl PixModel {
+    /// Create an empty PixModel at a specific size
     pub fn new(columns: usize, rows: usize) -> Self {
         PixModel {
             columns,
@@ -27,20 +32,21 @@ impl PixModel {
         }
     }
 
+    /// Create and populate a PixModel from a UiModel and font informations
     pub fn from_grid(
         model: &UiModel,
         char_width: f32,
         space_width: f32,
         sign_column: usize,
     ) -> Self {
-        let (rows, columns) = (model.rows, model.columns);
-        let mut pix_model = PixModel::new(columns, rows);
+        let mut pix_model = PixModel::new(model.columns, model.rows);
         for (row, line) in model.model().iter().enumerate() {
             pix_model.update(line, row, char_width, space_width, sign_column);
         }
         pix_model
     }
 
+    /// Update all characters' pixel positions in a line
     pub fn update(
         &mut self,
         line: &Line,
@@ -50,40 +56,39 @@ impl PixModel {
         sign_column: usize,
     ) -> f32 {
         let pix_line = &mut self.matrix[row];
+        // we first fill with space width because... spaces aren't characters, so we would never be able to compute their width.
         pix_line.fill(space_width);
         pix_line[0..sign_column].fill(char_width);
+        // we need to know the last non-space's position to draw backgrounds
         let mut last_non_space: usize = sign_column;
         for col in sign_column..self.columns {
+            // TODO: ensure that there's no issue with this loop on `iteml_line[col].` because `pix_line[col]` seems to overwrite on last iteration.
             for item in &line.item_line[col] {
-                let glyphs = item.glyphs();
-                if glyphs.is_some() {
-                    for glyph_string in glyphs.iter() {
-                        let n = item.item.num_chars() as usize;
-                        pix_line[col] = unscale!(glyph_string.width());
-                        last_non_space = col + n;
-                        if n > 1 {
-                            /* when multiple glyphs are computed as one, we set the
-                             * subsequent glyphs length to zero.
-                             */
-                            pix_line[col + 1..last_non_space].fill(0.0);
-                        }
+                if let Some(glyph_string) = item.glyphs().as_ref() {
+                    let n = item.item.num_chars() as usize;
+                    pix_line[col] = unscale!(glyph_string.width());
+                    last_non_space = col + n;
+                    if n > 1 {
+                        // when multiple glyphs are computed as one, we set the
+                        // subsequent glyphs length to zero.
+                        pix_line[col + 1..last_non_space].fill(0.0);
                     }
                 }
             }
         }
+        // the previous loop computes characters width. we now need to additionate these width to get pixel indexes.
         self.len_to_pos(row, last_non_space)
     }
 
+    /// Update pixel position of monospace font line. This is obviously simplier.
     pub fn update_mono(&mut self, row: usize, space_width: f32) -> f32 {
         self.matrix[row].fill(space_width);
         self.len_to_pos(row, self.columns)
     }
 
+    /// Compute the horizontal position in pixel of each cell.
     fn len_to_pos(&mut self, row: usize, last_non_space: usize) -> f32 {
-        /* compute the horizontal position in pixel of each cell
-         * we just reuse the same array here, because the previous one
-         * is not usefull anymore.
-         */
+        // we just reuse the same array here, because the previous one is not usefull anymore.
         let pix_line = &mut self.matrix[row];
         let mut x: f32 = 0.0;
         for i in 0..self.columns {
@@ -95,6 +100,7 @@ impl PixModel {
         pix_line[last_non_space]
     }
 
+    /// Does this PixModel fits this UiModel, i.e. do they have the exact same size?
     pub fn fit(&self, model: &UiModel) -> bool {
         model.columns == self.columns && model.rows == self.rows
     }
