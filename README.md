@@ -1,8 +1,8 @@
 __leguinvim__ - neovim gui with non-monospace font support.
 
-For people who want to use neovim for prose writing: SF novel, master thesis...
+For people who want to use neovim for prose writing: SF novel, master thesis, letters...
 
-May look awful with some plugins. still very buggy.
+May look awful with some plugins. Still very buggy.
 If you want to try it anyway, check how to [install](#install) and [configure](#configure) it.
 
 The name is a reference to SF writer [Ursula K. Le Guin](https://de.wikipedia.org/wiki/Ursula_K._Le_Guin): neovim makes possible to [edit text at the speed of thought](https://archive.org/details/practical-vim-edit-text-at-the-speed-of-thought), just as fast as Le Guin's characters with their telepathy abilities and their [ansibles](https://en.wikipedia.org/wiki/Ansible).
@@ -58,7 +58,7 @@ Except for extreme edge-cases, like lines full of bold-uppercase __W__. For thes
 ## source
 
 __leguinvim__ is forked from [neovim-gtk](https://github.com/lyude/neovim-gtk).
-(lot of removals and changes.)
+(Lot of removals and changes.)
 
 ## todo
 
