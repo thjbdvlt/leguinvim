@@ -35,6 +35,14 @@ impl Line {
         }
     }
 
+    pub fn to_string(&self, start_index: usize, end_index: usize) -> String {
+        let mut s = String::new();
+        for i in self.line[start_index..end_index].iter() {
+            s.push_str(&i.ch);
+        }
+        s
+    }
+
     pub fn swap_with(&mut self, target: &mut Self, left: usize, right: usize) {
         // swap is faster then clone
         target.line[left..=right].swap_with_slice(&mut self.line[left..=right]);

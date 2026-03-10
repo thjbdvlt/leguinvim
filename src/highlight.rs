@@ -34,7 +34,6 @@ pub enum BackgroundState {
 
 #[derive(Clone, Copy, Default)]
 pub struct HighlightUpdates {
-    // pub pmenu: bool,
     pub cursor: bool,
 }
 
@@ -351,9 +350,10 @@ impl Highlight {
     }
 }
 
-pub fn is_line_nr_hi(info: &[HashMap<String, Value>]) -> bool {
-    // workaround for proportional fonts
-    // see: Line.sign_column_len()
+/// Is this highlight group derived from LineNr?
+/// This is a workaround to get sign column length.
+/// See: Line.sign_column_len()
+fn is_line_nr_hi(info: &[HashMap<String, Value>]) -> bool {
     for i in info.iter() {
         if i.get("hi_name")
             .and_then(|i| i.as_str())

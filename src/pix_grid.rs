@@ -69,8 +69,7 @@ impl PixModel {
                     pix_line[col] = unscale!(glyph_string.width());
                     last_non_space = col + n;
                     if n > 1 {
-                        // when multiple glyphs are computed as one, we set the
-                        // subsequent glyphs length to zero.
+                        // when multiple glyphs are computed as one, we set the subsequent glyphs length to zero.
                         pix_line[col + 1..last_non_space].fill(0.0);
                     }
                 }
@@ -106,14 +105,6 @@ impl PixModel {
     }
 }
 
-fn line_str(line: &Line, start_index: usize, end_index: usize) -> String {
-    let mut s = String::new();
-    for i in start_index..end_index {
-        s.push_str(&line.line[i].ch);
-    }
-    s
-}
-
 fn find_word_start_index(pix_line: &PixLine, cursor_col: usize) -> usize {
     let mut i = cursor_col + 1;
     while i > 0 && pix_line[i] == pix_line[i - 1] {
@@ -122,6 +113,11 @@ fn find_word_start_index(pix_line: &PixLine, cursor_col: usize) -> usize {
     if i > 0 { i - 1 } else { i }
 }
 
+/// Get cursor x position in pixels.
+/// This function returns three values:
+/// - cursor width
+/// - cursor x position in pixel
+/// - the x position in pixel of the word the cursor is in
 pub fn cursor_x(
     line: &Line,
     pix_line: &PixLine,
@@ -143,17 +139,18 @@ pub fn cursor_x(
     let glyphs = item.glyphs();
     let mut x = pix_line[col];
     if n == 0 || glyphs.is_none() {
-        eprintln!("cursor on no glyph"); // this shouldn't happen
+        eprintln!("cursor on no glyph"); // there's no reason for this to ever happen
         return (space_width, x, 0.0);
     }
 
     let Some(glyph_string) = glyphs.iter().next() else {
+        // empty line
         return (space_width, x, 0.0);
     };
 
     if col + n > cursor_col {
         let m = cursor_col - col;
-        let text = line_str(line, col, col + n);
+        let text = line.to_string(col, col + n);
         let analysis = item.analysis();
         let (start, end) = (
             unscale!(glyph_string.index_to_x(&text, analysis, m as i32, false)),
