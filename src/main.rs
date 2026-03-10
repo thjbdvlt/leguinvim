@@ -5,7 +5,6 @@
 #![allow(clippy::await_holding_refcell_ref)]
 
 mod color;
-mod dirs;
 mod mode;
 mod ui_model;
 mod value;

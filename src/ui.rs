@@ -11,13 +11,11 @@ use gio::prelude::*;
 use gio::{ApplicationCommandLine, SimpleAction};
 use gtk::{ApplicationWindow, Orientation, Paned, prelude::*};
 
-use serde::{Deserialize, Serialize};
-
 use crate::Args;
 use crate::highlight::BackgroundState;
 use crate::misc::{self, BoolExt};
 use crate::nvim::*;
-use crate::settings::{Settings, SettingsLoader};
+use crate::settings::Settings;
 use crate::shell::{self, Shell};
 use crate::subscriptions::{SubscriptionHandle, SubscriptionKey};
 
@@ -44,7 +42,7 @@ impl Components {
     fn new() -> Components {
         Components {
             window: None,
-            window_state: ToplevelState::load(),
+            window_state: ToplevelState::default(),
             title_label: None,
             exit_confirmed: false,
         }
@@ -220,14 +218,6 @@ impl Ui {
             comps_ref,
             move |window| {
                 comps_ref.borrow_mut().window_state.is_maximized = window.is_maximized();
-            }
-        ));
-
-        window.connect_destroy(glib::clone!(
-            #[weak]
-            comps_ref,
-            move |_| {
-                comps_ref.borrow().window_state.save();
             }
         ));
 
@@ -596,7 +586,6 @@ fn set_exit_status(shell: &RefCell<Shell>, args: Vec<String>) {
     shell.borrow().set_exit_status(status);
 }
 
-#[derive(Serialize, Deserialize)]
 struct ToplevelState {
     current_width: i32,
     current_height: i32,
@@ -614,14 +603,6 @@ impl Default for ToplevelState {
             show_sidebar: false,
             sidebar_width: DEFAULT_SIDEBAR_WIDTH,
         }
-    }
-}
-
-impl SettingsLoader for ToplevelState {
-    const SETTINGS_FILE: &'static str = "window.toml";
-
-    fn from_str(s: &str) -> Result<Self, String> {
-        toml::from_str(s).map_err(|e| format!("{e}"))
     }
 }
 
