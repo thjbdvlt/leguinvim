@@ -57,6 +57,10 @@ impl Item {
         }
     }
 
+    pub fn width(&self) -> i32 {
+        self.glyphs().as_ref().map(|g| g.width()).unwrap_or(0)
+    }
+
     pub fn new_render_node(
         &self,
         color: &color::Color,

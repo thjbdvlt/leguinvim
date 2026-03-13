@@ -148,17 +148,19 @@ pub fn cursor_x(
         return (space_width, x, 0.0);
     };
 
-    // FIXME (#3): cursor on multibyte char isn't visible. (e.g. on 2nd byte of "é")
-    // the issue comes from "cursor_width", which is set to `0`.
     if col + n > cursor_col {
-        let m = cursor_col - col;
-        let text = line.to_string(col, col + n);
         let analysis = item.analysis();
-        let (start, end) = (
-            unscale!(glyph_string.index_to_x(&text, analysis, m as i32, false)),
-            unscale!(glyph_string.index_to_x(&text, analysis, m as i32, true)),
-        );
-        cursor_width = end - start;
+
+        // We can't use the same technique as in PixLine::update, because items are typically grouped in words and here we need to analyse position and width inside a word.
+        // TODO: optimize
+        let mut s = String::new();
+        for cell in line.line[col..cursor_col].iter() {
+            s.push_str(&cell.ch);
+        }
+        let start = unscale!(glyph_string.index_to_x(&s, analysis, s.len() as i32, false));
+        let mut glyphs = pango::GlyphString::new();
+        pango::shape(&line.line[cursor_col].ch, analysis, &mut glyphs);
+        cursor_width = unscale!(glyphs.width());
         x += start;
         prefix = start;
     }
