@@ -148,6 +148,8 @@ pub fn cursor_x(
         return (space_width, x, 0.0);
     };
 
+    // FIXME (#3): cursor on multibyte char isn't visible. (e.g. on 2nd byte of "é")
+    // the issue comes from "cursor_width", which is set to `0`.
     if col + n > cursor_col {
         let m = cursor_col - col;
         let text = line.to_string(col, col + n);
