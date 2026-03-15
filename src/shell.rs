@@ -404,10 +404,10 @@ impl State {
         }
     }
 
-    pub fn set_exit_status(&self, val: i32) {
+    pub fn set_exit_code(&self, code: glib::ExitCode) {
         let lock = self.app_cmdline.borrow();
         let r: &ApplicationCommandLine = lock.as_ref().unwrap();
-        r.set_exit_status(val);
+        r.set_exit_code(code);
     }
 
     pub fn open_file(&self, path: &str) {
@@ -1332,8 +1332,8 @@ impl Shell {
         state.set_nvim_command_cb(cb);
     }
 
-    pub fn set_exit_status(&self, status: i32) {
-        self.state.borrow().set_exit_status(status);
+    pub fn set_exit_code(&self, code: glib::ExitCode) {
+        self.state.borrow().set_exit_code(code);
     }
 }
 

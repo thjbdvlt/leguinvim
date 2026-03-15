@@ -242,7 +242,7 @@ impl Ui {
             glib::clone!(
                 #[weak]
                 shell_ref,
-                move |args| set_exit_status(&shell_ref, args)
+                move |args| set_exit_code(&shell_ref, args)
             ),
         );
 
@@ -581,9 +581,9 @@ fn update_window_title(comps: &Arc<UiMutex<Components>>, args: Vec<String>) {
     );
 }
 
-fn set_exit_status(shell: &RefCell<Shell>, args: Vec<String>) {
-    let status = args[0].parse().unwrap();
-    shell.borrow().set_exit_status(status);
+fn set_exit_code(shell: &RefCell<Shell>, args: Vec<String>) {
+    let code = args[0].parse::<u8>().unwrap();
+    shell.borrow().set_exit_code(code.into());
 }
 
 struct ToplevelState {
