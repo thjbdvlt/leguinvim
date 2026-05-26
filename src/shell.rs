@@ -194,13 +194,13 @@ impl State {
 
         let pango_context = nvim_viewport.create_pango_context();
         let font_desc = &FontDescription::from_string(DEFAULT_FONT_NAME);
-        pango_context.set_font_description(Some(font_desc));
+        pango_context.set_font_description(font_desc);
 
         let sub_ctxs = render::SubCtx::new(pango_context.clone(), font_desc.clone());
 
         let mono_context = nvim_viewport.create_pango_context();
         let mono_desc = &FontDescription::from_string(DEFAULT_FONT_NAME_MONO);
-        mono_context.set_font_description(Some(mono_desc));
+        mono_context.set_font_description(mono_desc);
 
         let mut render_state = RenderState::new(
             pango_context,
@@ -336,7 +336,7 @@ impl State {
         }
 
         let pango_context = self.nvim_viewport.create_pango_context();
-        pango_context.set_font_description(Some(&font_description));
+        pango_context.set_font_description(&font_description);
 
         if monospace {
             self.render_state
