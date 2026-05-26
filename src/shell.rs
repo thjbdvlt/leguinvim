@@ -467,7 +467,7 @@ impl State {
         let small_ctxs = &mut self.sub_ctxs;
 
         /* neovim grids */
-        for (_, grid) in self.grids.grids.iter_mut() {
+        for grid in self.grids.grids.values_mut() {
             let ctx = if grid.monospace { mono_ctx } else { font_ctx };
             grid.set_rect(ctx.cell_metrics());
             render::shape_dirty(ctx, mono_ctx, small_ctxs, grid, hl, true, grid.monospace);
