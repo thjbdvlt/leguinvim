@@ -148,6 +148,8 @@ pub fn cursor_x(
         return (space_width, x, 0.0);
     };
 
+    // FIXME: cursor in insert mode on last character on the line is at the wrong place.
+
     if col + n > cursor_col {
         let analysis = item.analysis();
 
