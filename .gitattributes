@@ -1,0 +1,6 @@
+screenshots/ filter=lfs diff=lfs merge=lfs -text
+screenshots/becker.png filter=lfs diff=lfs merge=lfs -text
+screenshots/completion.png filter=lfs diff=lfs merge=lfs -text
+screenshots/floating-monospace.png filter=lfs diff=lfs merge=lfs -text
+screenshots/norc.png filter=lfs diff=lfs merge=lfs -text
+screenshots/wwwww.png filter=lfs diff=lfs merge=lfs -text
